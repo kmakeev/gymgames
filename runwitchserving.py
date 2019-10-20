@@ -31,6 +31,7 @@ for each_game in range(10):
         if len(prev_observation) == 0:
             action = random.randrange(0, 2)
         else:
+            print(prev_observation.tolist())
             data = json.dumps({"examples": [{"observation": prev_observation.tolist()}]})
             try:
                 json_response = requests.post('http://localhost:8501/v1/models/CartPole-v0:classify',
