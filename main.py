@@ -12,8 +12,8 @@ SCORE_REQUIMENT = 50
 AGE = 4
 FEATURES = ['observation', 'action']
 INIT = False
-TRAIN = True
-SAVE = True
+TRAIN = False
+SAVE = False
 STEP = 5000
 saved_model_path = "/home/konstantin/tf_models"
 

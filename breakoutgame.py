@@ -7,7 +7,6 @@ import tensorflow as tf
 import pandas as pd
 from breakoutModel import MyModel
 import pygame
-from ale_python_interface import ALEInterface
 import json
 import requests
 
@@ -23,97 +22,72 @@ saved_model_path = "/home/konstantin/tf_models/breakout"
 
 headers = {"content-type": "application/json"}
 
-labels = [
-    "noop",
-    "fire",
-    "up",
-    "right",
-    "left",
-    "down",
-    "upright",
-    "upleft",
-    "downright",
-    "downleft",
-    "upfire",
-    "rightfire",
-    "leftfire",
-    "downfire",
-    "uprightfire",
-    "upleftfire",
-    "downrightfire",
-    "downleftfire",
-]
 
-def initial(ale, count_games, count_steps):
-    training_data = []
+def initial(env, legal_actions, count_games, count_steps):
     accepted_scores = []
-    legal_actions = ale.getMinimalActionSet()
-    for _ in range(count_games):
+    training_data = []
+    for each_game in range(count_games):
         score = 0
         game_memory = []
-        prev_frame = []
+        prev_observation = []
+        env.reset()
         for _ in range(count_steps):
+            env.render()
             action = random.choice(legal_actions)
-            # (screen_width, screen_height) = ale.getScreenDims()
-            # frame = np.zeros(screen_width * screen_height, dtype=np.uint8)
-            frame = ale.getRAM()
-            # frame = np.array(frame, dtype=float)
-            score += ale.act(action)
-            if len(prev_frame):
-                game_memory.append([prev_frame, action])
-            prev_frame = frame
-            if ale.game_over():
+            observation, reward, done, info = env.step(action)
+            if len(prev_observation):
+                #game_memory.append([prev_observation, action])
+                game_memory.append([(prev_observation.astype(np.float32)/255), action])
+            prev_observation = observation
+            score += reward
+            if done:
                 break
-        if score >= SCORE_REQUIMENT:
+        if score > SCORE_REQUIMENT * AGE:
             accepted_scores.append(score)
             for data in game_memory:
-                training_data.append([data[0].astype(np.float32).tolist(), data[1]])
-        ale.reset_game()
+                training_data.append([data[0].tolist(), data[1]])
+        env.reset()
     for_train = pd.DataFrame(training_data, columns=FEATURES)
     if not for_train.empty:
         print('Average accepted score:', mean(accepted_scores))
-    # print('Median  - ', median(accepted_scores))
-    # print(Counter(accepted_scores))
-
+        # print('Median  - ', median(accepted_scores))
+        # print(Counter(accepted_scores))
+    env.close()
     return for_train
 
-pygame.init()
 
-ale = ALEInterface()
-ale.setInt(b'random_seed', 123)
-ale.setBool(b'display_screen', False)
-ale.loadROM(b'breakout.a26')
+env = gym.make('Breakout-v0')
+env.reset()
+legal_actions = [0, 1, 2, 3]
 
 model = MyModel()
 
 if INIT:
-    training_data = initial(ale, 100, STEP)
-    #training_data.to_csv('saved.csv')
+    training_data = initial(env, legal_actions, 30, STEP)
+    training_data.to_csv('saved.csv')
 
     if not training_data.empty:
         model.train(training_data)
     else:
         print('Not play witch ower Score requiment :')
 
-test_data = initial(ale, 10, STEP)
+test_data = initial(env, legal_actions, 10, STEP)
 if not test_data.empty > 0:
-    #test_data.to_csv('saved.csv')
+    # test_data.to_csv('saved.csv')
     model.test(test_data)
 if SAVE:
     path = model.save_model(saved_model_path)
 
+"""
 scores = []
 choices = []
 training_data = []
-legal_actions = ale.getMinimalActionSet()
-ale.setBool(b'display_screen', True)
-ale.loadROM(b'breakout.a26')
 
 for each_game in range(1):
     score = 0
     game_memory = []
     prev_frame = []
-    ale.reset_game()
+    env.reset()
     for _ in range(STEP):
         if len(prev_frame) == 0:
             action = random.choice(legal_actions)
@@ -135,19 +109,20 @@ for each_game in range(1):
                 action = 1
 
 
-        frame = ale.getRAM()
+        # frame = ale.getRAM()
         if len(prev_frame):
             game_memory.append([prev_frame, action])
         choices.append(action)
-        score += ale.act(action)
-        prev_frame = frame
-        if ale.game_over():
-            break
+        # score += ale.act(action)
+        # prev_frame = frame
+        #if ale.game_over():
+            #break
     if score >= SCORE_REQUIMENT * AGE:
         for data in game_memory:
             training_data.append([data[0].tolist(), data[1]])
     scores.append(score)
-    ale.reset_game()
+    #ale.reset_game()
+
 
 print('Average Score:', sum(scores) / len(scores))
 print('choice 0: {}  choice 1: {}   choice 2: {}   choice 3: {} choice 4: {}'.format(choices.count(0) / len(choices), choices.count(1) / len(choices),
@@ -167,7 +142,7 @@ if len(training_data) and TRAIN:
 # saved_model_path = "/tmp/tf_save"
 # tf.saved_model.save(model, saved_model_path)
 
-"""
+
 
 for i_episode in range(2):
     observation = env.reset()

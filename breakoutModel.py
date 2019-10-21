@@ -1,6 +1,9 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 import tensorflow as tf
 
+import os
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '1'  # or any {'0', '1', '2'}
+os.environ['CUDA_VISIBLE_DEVICES'] = ''
 
 FEATURES = ['frame', 'action']
 
@@ -9,12 +12,12 @@ class MyModel:
 
     def __init__(self):
         self.my_feature_columns = []
-        self.my_feature_columns.append(tf.feature_column.numeric_column(key=FEATURES[0], shape=[128, 1]))
+        self.my_feature_columns.append(tf.feature_column.numeric_column(key=FEATURES[0], shape=[210, 160, 3]))
         self.classifier = tf.compat.v2.estimator.DNNClassifier(
             feature_columns=self.my_feature_columns,
-            hidden_units=[128, 32, 4, ],
-            n_classes=5,
-            model_dir='./output2')
+            hidden_units=[128, 4, ],
+            n_classes=4,
+            model_dir='./output')
 
     def save_model(self, patch):
         serving_input_fn = tf.estimator.export.build_parsing_serving_input_receiver_fn(
