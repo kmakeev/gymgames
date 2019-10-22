@@ -5,15 +5,16 @@ from statistics import median, mean
 from collections import Counter
 import tensorflow as tf
 import pandas as pd
-from breakoutModel import MyModel
+from breakoutModel2 import MyModel
 import pygame
 import json
 import requests
-
+import matplotlib.pyplot as plt
 
 SCORE_REQUIMENT = 4
 AGE = 1
-FEATURES = ['frame', 'action']
+# FEATURES = ['frame', 'action']
+FEATURES = ['count', 'lives', 'bricks', 'field', 'board', 'action']
 INIT = True
 TRAIN = False
 SAVE = False
@@ -23,6 +24,10 @@ saved_model_path = "/home/konstantin/tf_models/breakout"
 headers = {"content-type": "application/json"}
 
 
+def show_image(image):
+    plt.imshow(image)
+    plt.show()
+
 def initial(env, legal_actions, count_games, count_steps):
     accepted_scores = []
     training_data = []
@@ -31,21 +36,37 @@ def initial(env, legal_actions, count_games, count_steps):
         game_memory = []
         prev_observation = []
         env.reset()
-        for _ in range(count_steps):
-            env.render()
+        for count in range(count_steps):
+            # env.render()
             action = random.choice(legal_actions)
             observation, reward, done, info = env.step(action)
+            # show_image(observation)
+            gray_img = tf.compat.v2.image.rgb_to_grayscale(observation)
+            # show_image(tf.squeeze(gray_img))
+            squezze_gray_image = tf.squeeze(gray_img).numpy().astype(np.float32)/255
+            top = squezze_gray_image[0:20]
+            lives = info['ale.lives']
+            bricks = squezze_gray_image[27:123]
+            field = squezze_gray_image[123:188]
+            board = squezze_gray_image[188:192]
+            # show_image(squezze_gray_image[0:20])            # score and lives
+            # show_image(squezze_gray_image[27:123])          # bricks
+            # show_image(squezze_gray_image[123:188])         # field
+            # show_image(squezze_gray_image[188:192])  # board
+            # print(score.shape, bricks.shape, field.shape, board.shape)
             if len(prev_observation):
                 #game_memory.append([prev_observation, action])
-                game_memory.append([(prev_observation.astype(np.float32)/255), action])
+                game_memory.append([count, lives, bricks, field,
+                                    board, action])
             prev_observation = observation
             score += reward
             if done:
                 break
-        if score > SCORE_REQUIMENT * AGE:
+        if score >= SCORE_REQUIMENT * AGE:
             accepted_scores.append(score)
-            for data in game_memory:
-                training_data.append([data[0].tolist(), data[1]])
+            for data in game_memory:                                        # 5- number of lives as default
+                training_data.append([float(data[0]/count), float(data[1]/5), data[2].tolist(), data[3].tolist(),
+                                      data[4].tolist(), data[5]])
         env.reset()
     for_train = pd.DataFrame(training_data, columns=FEATURES)
     if not for_train.empty:
@@ -63,8 +84,8 @@ legal_actions = [0, 1, 2, 3]
 model = MyModel()
 
 if INIT:
-    training_data = initial(env, legal_actions, 30, STEP)
-    training_data.to_csv('saved.csv')
+    training_data = initial(env, legal_actions, 50, STEP)
+    # training_data.to_csv('saved.csv')
 
     if not training_data.empty:
         model.train(training_data)
@@ -73,7 +94,7 @@ if INIT:
 
 test_data = initial(env, legal_actions, 10, STEP)
 if not test_data.empty > 0:
-    # test_data.to_csv('saved.csv')
+    test_data.to_csv('saved.csv')
     model.test(test_data)
 if SAVE:
     path = model.save_model(saved_model_path)
