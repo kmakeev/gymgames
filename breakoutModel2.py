@@ -21,7 +21,7 @@ class MyModel:
             feature_columns=self.my_feature_columns,
             hidden_units=[32, 4, ],
             n_classes=4,
-            model_dir='./output')
+            model_dir='./output3')
 
     def save_model(self, patch):
         serving_input_fn = tf.estimator.export.build_parsing_serving_input_receiver_fn(

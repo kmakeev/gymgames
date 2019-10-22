@@ -1,9 +1,9 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 import tensorflow as tf
 
-import os
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '1'  # or any {'0', '1', '2'}
-os.environ['CUDA_VISIBLE_DEVICES'] = ''
+# import os
+# os.environ['TF_CPP_MIN_LOG_LEVEL'] = '1'  # or any {'0', '1', '2'}
+# os.environ['CUDA_VISIBLE_DEVICES'] = ''
 
 FEATURES = ['frame', 'action']
 
@@ -35,7 +35,7 @@ class MyModel:
     def input_fn(self, features, labels, training=True, batch_size=2048):
         dataset = tf.data.Dataset.from_tensor_slices((features, labels))
         if training:
-            dataset = dataset.shuffle(10).repeat()
+            dataset = dataset.shuffle(1).repeat()
         return dataset.batch(batch_size)
 
     def input_prediction_fn(self, features, batch_size=1):
