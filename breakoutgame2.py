@@ -15,12 +15,12 @@ SCORE_REQUIMENT = 4
 AGE = 1
 # FEATURES = ['frame', 'action']
 FEATURES = ['count', 'lives', 'bricks', 'field', 'board', 'action']
-INIT = True
+INIT = False
 TRAIN = False
 SAVE = False
 STEP = 1000
 saved_model_path = "/home/konstantin/tf_models/breakout2"
-tf.enable_eager_execution()
+# tf.enable_eager_execution()
 
 
 headers = {"content-type": "application/json"}
@@ -80,11 +80,11 @@ def initial(env, legal_actions, count_games, count_steps):
 
 
 env = gym.make('Breakout-v0')
-env.reset()
 legal_actions = [0, 1, 2, 3]
 
 model = MyModel()
-
+a = model.classifier.model_fn
+print(a.model)
 if INIT:
     training_data = initial(env, legal_actions, 50, STEP)
     # training_data.to_csv('saved.csv')

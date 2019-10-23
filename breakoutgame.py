@@ -20,7 +20,7 @@ TRAIN = False
 SAVE = False
 STEP = 1000
 saved_model_path = "/home/konstantin/tf_models/breakout2"
-tf.enable_eager_execution()
+# tf.enable_eager_execution()
 
 
 headers = {"content-type": "application/json"}
