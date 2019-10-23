@@ -83,8 +83,6 @@ env = gym.make('Breakout-v0')
 legal_actions = [0, 1, 2, 3]
 
 model = MyModel()
-a = model.classifier.model_fn
-print(a.model)
 if INIT:
     training_data = initial(env, legal_actions, 50, STEP)
     # training_data.to_csv('saved.csv')
