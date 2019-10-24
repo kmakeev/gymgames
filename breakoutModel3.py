@@ -15,7 +15,7 @@ STEP = 1000
 MAX_LIVES = 5
 FEATURES = ['count', 'lives', 'bricks', 'field', 'board', 'action']
 NUM_CLASSES = 4
-log_dir = "C:\\Python34\\gym\\logs\\fit\\" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+log_dir = "./logs/fit/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
 
 
 def show_image(image):
@@ -113,9 +113,9 @@ class MyModel():
         braunch5 = tf.keras.layers.Conv1D(4, 4)(input_board)
         braunch5 = tf.keras.layers.Reshape((4, ))(braunch5)
 
-        concotaneted = tf.keras.layers.concatenate([braunch1, braunch2, braunch3, braunch3, braunch4, braunch5])
+        concotaneted = tf.keras.layers.concatenate([braunch1, braunch2, braunch3, braunch4, braunch5])
         #concotaneted = tf.keras.layers.concatenate([braunch3, braunch3, braunch4, braunch5])
-        concotaneted = tf.keras.layers.Reshape((233, 2))(concotaneted)
+        concotaneted = tf.keras.layers.Reshape((149, 2))(concotaneted)
         last = tf.keras.layers.LSTM(16)(concotaneted)
         last = tf.keras.layers.LSTM(16)(concotaneted)
         last = tf.keras.layers.Dense(16, activation='relu')(last)

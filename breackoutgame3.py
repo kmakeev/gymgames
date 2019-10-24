@@ -20,22 +20,22 @@ AGE = 1
 STEP = 1000
 FEATURES = ['count', 'lives', 'bricks', 'field', 'board', 'action']
 legal_actions = [0, 1, 2, 3]
-saved_model_path = "C:\\Python34\\Gym\\kerasmodel\\"
+saved_model_path = "./kerasmodel/"
 MAX_LIVES = 5
-log_dir = "C:\\Python34\\gym\\logs\\fit\\" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+log_dir = "./logs/fit/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
 
 tf.compat.v1.enable_eager_execution()
 
-env = gym.make('Breakout-v0')
-
-
+env = gym.make('BreakoutDeterministic-v4')
+import os
+os.environ['CUDA_VISIBLE_DEVICES'] = ''
 
 def show_image(image):
     plt.imshow(image)
     plt.show()
 
 if INIT:
-    training_data = initial(env, legal_actions, 500, 1000)
+    training_data = initial(env, legal_actions, 500, 3000)
     test_data = initial(env, legal_actions, 100, 10)
 
     # For debug on tensorboard, show data images
@@ -139,3 +139,4 @@ while True:
     else:
         print("Not training data in game set")
     env.close()
+
