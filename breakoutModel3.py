@@ -9,10 +9,10 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 tf.compat.v1.enable_eager_execution()
-SCORE_REQUIMENT = 4
+SCORE_REQUIMENT = 2
 AGE = 1
 STEP = 1000
-MAX_LIVES = 2
+MAX_LIVES = 5
 FEATURES = ['count', 'lives', 'bricks', 'field', 'board', 'action']
 NUM_CLASSES = 4
 log_dir = "C:\\Python34\\gym\\logs\\fit\\" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
@@ -101,21 +101,22 @@ class MyModel():
         braunch2 = tf.keras.layers.Dense(1)(input_lives)
 
         #braunch3 = tf.keras.layers.Reshape((15360,))(input_bricks)
-        braunch3 = tf.keras.layers.Conv1D(24, 40, activation='relu')(input_bricks)
-        braunch3 = tf.keras.layers.Conv1D(48, 40, activation='relu')(braunch3)
-        braunch3 = tf.keras.layers.Reshape((864, ))(braunch3)
+        braunch3 = tf.keras.layers.Conv1D(4, 10, activation='relu')(input_bricks)
+        braunch3 = tf.keras.layers.Conv1D(2, 4, activation='relu')(braunch3)
+        braunch3 = tf.keras.layers.Reshape((168, ))(braunch3)
 
         #braunch4 = tf.keras.layers.Reshape((10400,))(input_field)
-        braunch4 = tf.keras.layers.Conv1D(8, 40,  activation='relu')(input_field)
-        braunch4 = tf.keras.layers.Conv1D(4, 26, activation='relu')(braunch4)
-        braunch4 = tf.keras.layers.Reshape((4, ))(braunch4)
+        braunch4 = tf.keras.layers.Conv1D(2, 4,  activation='relu')(input_field)
+        # braunch4 = tf.keras.layers.Conv1D(2, 2, activation='relu')(braunch4)
+        braunch4 = tf.keras.layers.Reshape((124, ))(braunch4)
 
-        braunch5 = tf.keras.layers.Conv1D(2, 4)(input_board)
-        braunch5 = tf.keras.layers.Reshape((2, ))(braunch5)
+        braunch5 = tf.keras.layers.Conv1D(4, 4)(input_board)
+        braunch5 = tf.keras.layers.Reshape((4, ))(braunch5)
 
         concotaneted = tf.keras.layers.concatenate([braunch1, braunch2, braunch3, braunch3, braunch4, braunch5])
         #concotaneted = tf.keras.layers.concatenate([braunch3, braunch3, braunch4, braunch5])
-        concotaneted = tf.keras.layers.Reshape((868, 2))(concotaneted)
+        concotaneted = tf.keras.layers.Reshape((233, 2))(concotaneted)
+        last = tf.keras.layers.LSTM(16)(concotaneted)
         last = tf.keras.layers.LSTM(16)(concotaneted)
         last = tf.keras.layers.Dense(16, activation='relu')(last)
         last = tf.keras.layers.Dropout(0.2)(last)
