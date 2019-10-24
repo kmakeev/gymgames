@@ -10,26 +10,55 @@ import pygame
 import json
 import requests
 import matplotlib.pyplot as plt
+import datetime
 
 INIT = True
 TRAIN = False
-SAVE = True
-SCORE_REQUIMENT = 3
+SAVE = False
+SCORE_REQUIMENT = 4
 AGE = 1
 STEP = 1000
 FEATURES = ['count', 'lives', 'bricks', 'field', 'board', 'action']
 legal_actions = [0, 1, 2, 3]
-saved_model_path = './kerasmodel/'
+saved_model_path = "C:\\Python34\\Gym\\kerasmodel\\"
+MAX_LIVES = 5
+log_dir = "C:\\Python34\\gym\\logs\\fit\\" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
 
 tf.compat.v1.enable_eager_execution()
 
 env = gym.make('Breakout-v0')
 
-if INIT:
-    training_data = initial(env, legal_actions, 100, 20)
-    test_data = initial(env, legal_actions, 50, 10)
 
-    if len(training_data)==0 or len(test_data)==0:
+
+def show_image(image):
+    plt.imshow(image)
+    plt.show()
+
+if INIT:
+    training_data = initial(env, legal_actions, 500, 100)
+    test_data = initial(env, legal_actions, 100, 10)
+
+    # For debug on tensorboard, show data images
+    """
+    file_writer = tf.summary.create_file_writer(log_dir)
+    idx = np.random.randint(100, size=8)
+    bricks = training_data['bricks'][idx].values
+    bricks = np.concatenate(bricks)
+    bricks = bricks.reshape(-1, 96, 160, 1)
+    field = training_data['field'][idx].values
+    field = np.concatenate(field)
+    field = field.reshape(-1, 65, 160, 1)
+    board = training_data['board'][idx].values
+    board = np.concatenate(board)
+    board = board.reshape(-1, 4, 160, 1)
+
+
+    with file_writer.as_default():
+        tf.summary.image("Training bricks", bricks, max_outputs=8, step=0)
+        tf.summary.image("Training field", field, max_outputs=8, step=0)
+        tf.summary.image("Training board", board, max_outputs=8, step=0)
+    """
+    if len(training_data)==0 or len(test_data) == 0:
         print("Not play witch ower Score requiment ")
         exit()
 
@@ -45,8 +74,8 @@ choices = []
 
 accepted_scores = []
 training_data = []
-max_len = 10000
-for each_game in range(1):
+max_len = 100
+for each_game in range(3):
     score = 0
     prev_lives = 5                          #num lives as default
     score_by_life = 0
@@ -60,7 +89,7 @@ for each_game in range(1):
             action = random.choice(legal_actions)
         else:
             data = prev_data
-            for_predict_data = [float(data[0]/count), float(data[1]/5), data[2].ravel(), data[3],
+            for_predict_data = [float(data[0]), float(data[1]), data[2].ravel(), data[3],
                                   data[4], data[5]]
             dataframe = pd.DataFrame([for_predict_data], columns=FEATURES)
             predictions = model.predict(dataframe)
@@ -70,14 +99,15 @@ for each_game in range(1):
         print("For count %s action is - %s" % (count, action))
         observation, reward, done, info = env.step(action)
         gray_img = tf.compat.v2.image.rgb_to_grayscale(observation)
-        squezze_gray_image = tf.squeeze(gray_img).numpy().astype(np.float32)/255
+        squezze_gray_image = tf.squeeze(gray_img).numpy().astype(np.float32)  #/255
         top = squezze_gray_image[0:20]
         lives = info['ale.lives']
         bricks = squezze_gray_image[27:123]
         field = squezze_gray_image[123:188]
         board = squezze_gray_image[188:192]
 
-        prev_data = [count, lives, bricks, field, board, action]
+        prev_data = [float(count/STEP), float(lives/MAX_LIVES), bricks, field,
+                                    board, action]
         game_memory.append(prev_data)
         prev_observation = observation
         score += reward
@@ -94,7 +124,7 @@ for each_game in range(1):
     if score >= SCORE_REQUIMENT * AGE and len(training_data) < max_len:
         accepted_scores.append(score)
         for data in game_memory:                                        # 5- number of lives as default
-            training_data.append([float(data[0]/count), float(data[1]/5), data[2].ravel(), data[3],
+            training_data.append([float(data[0]), float(data[1]), data[2].ravel(), data[3],
                                   data[4], data[5]])
             if len(training_data) == max_len:
                 break
