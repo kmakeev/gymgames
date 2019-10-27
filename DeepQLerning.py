@@ -1,7 +1,7 @@
-TRAIN = True
+TRAIN = False
 
-ENV_NAME = 'BreakoutDeterministic-v4'
-#ENV_NAME = 'PongDeterministic-v4'
+#ENV_NAME = 'BreakoutDeterministic-v4'
+ENV_NAME = 'PongDeterministic-v4'
 # You can increase the learning rate to 0.00025 in Pong for quicker results
 
 """
@@ -649,10 +649,13 @@ def train():
             with open('rewardsEval.dat', 'a') as eval_reward_file:
                 print(frame_number, np.mean(eval_rewards), file=eval_reward_file)
 
-
-
 if TRAIN:
     train()
+
+save_files_dict = {
+    'BreakoutDeterministic-v4':("trained/breakout/", "my_model-7016868.meta"),
+    'PongDeterministic-v4':("trained/pong/", "my_model-3217770.meta")
+}
 
 if not TRAIN:
 
