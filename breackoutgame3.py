@@ -22,11 +22,11 @@ FEATURES = ['count', 'lives', 'bricks', 'field', 'board', 'action']
 legal_actions = [0, 1, 2, 3]
 saved_model_path = "./kerasmodel/"
 MAX_LIVES = 5
-log_dir = "./logs/fit/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+log_dir = "logs/fit/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
 
 tf.compat.v1.enable_eager_execution()
 
-env = gym.make('BreakoutDeterministic-v4')
+env = gym.make('Breakout-v4')
 import os
 os.environ['CUDA_VISIBLE_DEVICES'] = ''
 

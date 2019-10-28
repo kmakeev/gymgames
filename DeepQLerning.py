@@ -1,7 +1,7 @@
-TRAIN = False
+TRAIN = True
 
-#ENV_NAME = 'BreakoutDeterministic-v4'
-ENV_NAME = 'PongDeterministic-v4'
+ENV_NAME = 'BreakoutDeterministic-v4'
+#ENV_NAME = 'PongDeterministic-v4'
 # You can increase the learning rate to 0.00025 in Pong for quicker results
 
 """
@@ -181,8 +181,8 @@ class ExplorationExploitationScheduler(object):
         elif frame_number >= self.replay_memory_start_size + self.eps_annealing_frames:
             eps = self.slope_2*frame_number + self.intercept_2
 
-        if np.random.rand(1) < eps:
-            return np.random.randint(0, self.n_actions)
+        if np.random.rand(1) < eps:                                 # 𝜖 -  коэффициэнт компромисса разведки и эксплуатации (при 1 - только исследование)
+            return np.random.randint(0, self.n_actions)             # Случайное число от 0 до максимального количества действий
         return session.run(self.DQN.best_action, feed_dict={self.DQN.input:[state]})[0]
 
 class ReplayMemory(object):
@@ -563,29 +563,29 @@ def train():
                     # Clip the reward
                     clipped_reward = clip_reward(reward)
 
-                    # (7★) Store transition in the replay memory
+                    # (7★) Store transition in the replay memory сохранить переход в памяти replay памяти
                     my_replay_memory.add_experience(action=action,
                                                     frame=processed_new_frame[:, :, 0],
                                                     reward=clipped_reward,
                                                     terminal=terminal_life_lost)
-
-                    if frame_number % UPDATE_FREQ == 0 and frame_number > REPLAY_MEMORY_START_SIZE:
+                    # При большем количестве случайных действий ( REPLAY_MEMORY_START_SIZE= 10000)
+                    if frame_number % UPDATE_FREQ == 0 and frame_number > REPLAY_MEMORY_START_SIZE: # Каждые четыре действия и  выполняется шаг градиентного спуска
                         loss = learn(sess, my_replay_memory, MAIN_DQN, TARGET_DQN,
                                      BS, gamma = DISCOUNT_FACTOR) # (8★)
                         loss_list.append(loss)
-                    if frame_number % NETW_UPDATE_FREQ == 0 and frame_number > REPLAY_MEMORY_START_SIZE:
+                    if frame_number % NETW_UPDATE_FREQ == 0 and frame_number > REPLAY_MEMORY_START_SIZE: # Количество выбранных действий между обновлениями целевой сети.
                         update_networks(sess) # (9★)
 
-                    if terminal:
+                    if terminal:            # при окончании игры
                         terminal = False
                         break
 
-                rewards.append(episode_reward_sum)
+                rewards.append(episode_reward_sum)              # Набрано очков за игру
 
                 # Output the progress:
-                if len(rewards) % 10 == 0:
+                if len(rewards) % 10 == 0:                      #каждую 10-ю игру
                     # Scalar summaries for tensorboard
-                    if frame_number > REPLAY_MEMORY_START_SIZE:
+                    if frame_number > REPLAY_MEMORY_START_SIZE:         #Каждые 10 проигрышей при большем количестве случайных действий ( REPLAY_MEMORY_START_SIZE= 10000)
                         summ = sess.run(PERFORMANCE_SUMMARIES,
                                         feed_dict={LOSS_PH:np.mean(loss_list),
                                                    REWARD_PH:np.mean(rewards[-100:])})
@@ -593,7 +593,7 @@ def train():
                         SUMM_WRITER.add_summary(summ, frame_number)
                         loss_list = []
                     # Histogramm summaries for tensorboard
-                    summ_param = sess.run(PARAM_SUMMARIES)
+                    summ_param = sess.run(PARAM_SUMMARIES)                  #Для сводки на Tensorboard
                     SUMM_WRITER.add_summary(summ_param, frame_number)
 
                     print(len(rewards), frame_number, np.mean(rewards[-100:]))

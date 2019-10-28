@@ -15,7 +15,7 @@ STEP = 1000
 MAX_LIVES = 5
 FEATURES = ['count', 'lives', 'bricks', 'field', 'board', 'action']
 NUM_CLASSES = 4
-log_dir = "./logs/fit/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+log_dir = "logs/fit/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
 
 
 def show_image(image):
@@ -34,7 +34,7 @@ def initial(env, legal_actions, count_games, max_len):
         prev_observation = []
         env.reset()
         for count in range(STEP):
-            # env.render()
+            env.render()
             action = random.choice(legal_actions)
             observation, reward, done, info = env.step(action)
             # show_image(observation)
