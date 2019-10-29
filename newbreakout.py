@@ -84,7 +84,7 @@ ENV_NAME = 'BreakoutDeterministic-v4'
 # Максимальное количество кадров для одной игры
 MAX_EPISODE_LENGTH = 18000       # Equivalent of 5 minutes of gameplay at 60 frames per second
 # Количество кадров считываемое агентов между оценками
-EVAL_FREQUENCY = 200000          # Number of frames the agent sees between evaluations
+EVAL_FREQUENCY = 100000          # Number of frames the agent sees between evaluations
 # Количество кадров для одной оценки
 EVAL_STEPS = 10000               # Number of frames for one evaluation
 # Количество выбранных действий между обновлениями целевой сети
@@ -183,6 +183,7 @@ def train():
         replay_memory_start_size=REPLAY_MEMORY_START_SIZE,
         max_frames=MAX_FRAMES)
 
+
     with tf.Session() as sess:
         sess.run(init)
 
@@ -201,7 +202,7 @@ def train():
                 episode_reward_sum = 0
                 for _ in range(MAX_EPISODE_LENGTH):
                     # (4★)
-                    # atari.env.render()
+                    atari.env.render()
                     action = explore_exploit_sched.get_action(sess, frame_number, atari.state)
                     # (5★)
                     processed_new_frame, reward, terminal, terminal_life_lost, _ = atari.step(sess, action)
