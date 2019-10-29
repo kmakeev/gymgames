@@ -1,4 +1,4 @@
-TRAIN = True
+TRAIN = False
 
 ENV_NAME = 'BreakoutDeterministic-v4'
 #ENV_NAME = 'PongDeterministic-v4'
