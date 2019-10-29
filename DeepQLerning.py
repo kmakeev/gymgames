@@ -185,6 +185,7 @@ class ExplorationExploitationScheduler(object):
             return np.random.randint(0, self.n_actions)             # Случайное число от 0 до максимального количества действий
         return session.run(self.DQN.best_action, feed_dict={self.DQN.input:[state]})[0]
 
+
 class ReplayMemory(object):
     """Replay Memory that stores the last size=1,000,000 transitions"""
     def __init__(self, size=1000000, frame_height=84, frame_width=84,
@@ -371,6 +372,7 @@ class TargetNetworkUpdater(object):
         update_ops = self._update_target_vars()
         for copy_op in update_ops:
             sess.run(copy_op)
+
 
 def generate_gif(frame_number, frames_for_gif, reward, path):
     """
