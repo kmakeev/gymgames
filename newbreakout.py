@@ -1,4 +1,4 @@
-from DQN import DQN, ReplayMemory, ExplorationExploitationScheduler, FrameProcessor, TargetNetworkUpdater
+from DQN import DQN, ReplayMemory, ExplorationExploitationScheduler, TargetNetworkUpdater
 from atari import Atari
 import imageio
 from skimage.transform import resize
@@ -201,7 +201,7 @@ def train():
                 episode_reward_sum = 0
                 for _ in range(MAX_EPISODE_LENGTH):
                     # (4★)
-                    atari.env.render()
+                    # atari.env.render()
                     action = explore_exploit_sched.get_action(sess, frame_number, atari.state)
                     # (5★)
                     processed_new_frame, reward, terminal, terminal_life_lost, _ = atari.step(sess, action)

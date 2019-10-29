@@ -2,7 +2,12 @@ from DQN import FrameProcessor
 import gym
 import random
 import numpy as np
+#import matplotlib.pyplot as plt
+# import tensorflow.compat.v1 as tf
 
+# def show_image(image):
+#    plt.imshow(image)
+#    plt.show()
 
 class Atari(object):
     """Wrapper for the environment provided by gym"""
@@ -29,7 +34,7 @@ class Atari(object):
         if evaluation:
             for _ in range(random.randint(1, self.no_op_steps)):
                 frame, _, _, _ = self.env.step(1) # Action 'Fire'
-        processed_frame = self.process_frame(sess, frame)   # (★★★)
+        processed_frame = self.process_frame(frame).eval()   # (★★★)
         self.state = np.repeat(processed_frame, self.agent_history_length, axis=2)
 
         return terminal_life_lost
@@ -49,7 +54,9 @@ class Atari(object):
             terminal_life_lost = terminal
         self.last_lives = info['ale.lives']
 
-        processed_new_frame = self.process_frame(sess, new_frame)   # (6★)
+        processed_new_frame = self.process_frame(new_frame).eval()   # (6★)
+        # ff = tf.squeeze(processed_new_frame).eval()
+        # show_image(ff)
         new_state = np.append(self.state[:, :, 1:], processed_new_frame, axis=2) # (6★)
         self.state = new_state
 

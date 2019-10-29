@@ -1,12 +1,7 @@
-import tensorflow.compat.v1 as tf
+from __future__ import absolute_import, division, print_function, unicode_literals
+import tensorflow as tf
 import numpy as np
 import random
-import matplotlib.pyplot as plt
-
-
-def show_image(image):
-    plt.imshow(image)
-    plt.show()
 
 
 class FrameProcessor(object):
@@ -19,22 +14,17 @@ class FrameProcessor(object):
         """
         self.frame_height = frame_height
         self.frame_width = frame_width
-        self.frame = tf.placeholder(shape=[210, 160, 3], dtype=tf.uint8)
-        self.processed = tf.image.rgb_to_grayscale(self.frame)
-        self.processed = tf.image.crop_to_bounding_box(self.processed, 34, 0, 160, 160)
-        self.processed = tf.image.resize(self.processed,
-                                                [self.frame_height, self.frame_width],
-                                                method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
 
-    def __call__(self, session, frame):
-        """
-        Args:
-            session: A Tensorflow session object
-            frame: A (210, 160, 3) frame of an Atari game in RGB
-        Returns:
-            A processed (84, 84, 1) frame in grayscale
-        """
-        return session.run(self.processed, feed_dict={self.frame:frame})
+
+    @tf.function
+    def __call__(self, frame):
+        frame = tf.reshape(frame, [210, 160, 3])
+        frame = tf.cast(frame, tf.uint8)
+        processed = tf.image.rgb_to_grayscale(frame)
+        processed = tf.image.crop_to_bounding_box(processed, 34, 0, 160, 160)
+        processed = tf.image.resize(processed, [self.frame_height, self.frame_width],
+                                         method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
+        return processed
 
 
 class DQN(object):
@@ -61,40 +51,38 @@ class DQN(object):
         self.frame_width = frame_width
         self.agent_history_length = agent_history_length
 
-        self.input = tf.placeholder(shape=[None, self.frame_height,
-                                           self.frame_width, self.agent_history_length],
-                                    dtype=tf.float32)
+        self.input = tf.compat.v2.keras.Input(shape=[self.frame_height,
+                                           self.frame_width, self.agent_history_length], dtype='float32', name='input')
+        # self.input = tf.placeholder(shape=[None, self.frame_height,
+        #                                   self.frame_width, self.agent_history_length],
+        #                            dtype=tf.float32)
         # Normalizing the input
         self.inputscaled = self.input/255
 
         # Convolutional layers
-        self.conv1 = tf.layers.conv2d(
-            inputs=self.inputscaled, filters=32, kernel_size=[8, 8], strides=4,
-            kernel_initializer=tf.variance_scaling_initializer(scale=2),
-            padding="valid", activation=tf.nn.relu, use_bias=False, name='conv1')
-        self.conv2 = tf.layers.conv2d(
-            inputs=self.conv1, filters=64, kernel_size=[4, 4], strides=2,
-            kernel_initializer=tf.variance_scaling_initializer(scale=2),
-            padding="valid", activation=tf.nn.relu, use_bias=False, name='conv2')
-        self.conv3 = tf.layers.conv2d(
-            inputs=self.conv2, filters=64, kernel_size=[3, 3], strides=1,
-            kernel_initializer=tf.variance_scaling_initializer(scale=2),
-            padding="valid", activation=tf.nn.relu, use_bias=False, name='conv3')
-        self.conv4 = tf.layers.conv2d(
-            inputs=self.conv3, filters=hidden, kernel_size=[7, 7], strides=1,
-            kernel_initializer=tf.variance_scaling_initializer(scale=2),
-            padding="valid", activation=tf.nn.relu, use_bias=False, name='conv4')
+        self.conv1 = tf.keras.layers.Conv2D(filters=32, kernel_size=[8, 8], strides=4,
+                                            kernel_initializer=tf.compat.v2.initializers.VarianceScaling(scale=2),
+                                            padding="valid", activation=tf.nn.relu, use_bias=False, name='conv1')(self.inputscaled)
+        self.conv2 = tf.keras.layers.Conv2D(filters=64, kernel_size=[4, 4], strides=2,
+                                            kernel_initializer=tf.compat.v2.initializers.VarianceScaling(scale=2),
+                                            padding="valid", activation=tf.nn.relu, use_bias=False, name='conv2')(self.conv1)
+        self.conv3 = tf.keras.layers.Conv2D(filters=64, kernel_size=[3, 3], strides=1,
+                                            kernel_initializer=tf.compat.v2.initializers.VarianceScaling(scale=2),
+                                            padding="valid", activation=tf.nn.relu, use_bias=False, name='conv3')(self.conv2)
+        self.conv4 =tf.keras.layers.Conv2D(filters=hidden, kernel_size=[7, 7], strides=1,
+                                           kernel_initializer=tf.compat.v2.initializers.VarianceScaling(scale=2),
+                                           padding="valid", activation=tf.nn.relu, use_bias=False, name='conv4')(self.conv3)
 
         # Splitting into value and advantage stream
         self.valuestream, self.advantagestream = tf.split(self.conv4, 2, 3)
-        self.valuestream = tf.layers.flatten(self.valuestream)
-        self.advantagestream = tf.layers.flatten(self.advantagestream)
-        self.advantage = tf.layers.dense(
-            inputs=self.advantagestream, units=self.n_actions,
-            kernel_initializer=tf.variance_scaling_initializer(scale=2), name="advantage")
-        self.value = tf.layers.dense(
-            inputs=self.valuestream, units=1,
-            kernel_initializer=tf.variance_scaling_initializer(scale=2), name='value')
+        self.valuestream = tf.keras.layers.Flatten()(self.valuestream)
+        self.advantagestream = tf.keras.layers.Flatten()(self.advantagestream)
+        self.advantage = tf.keras.layers.Dense(units=self.n_actions,
+                                               kernel_initializer=tf.compat.v2.initializers.VarianceScaling(scale=2),
+                                               name="advantage")(self.advantagestream)
+        self.value = tf.keras.layers.Dense(units=1,
+                                           kernel_initializer=tf.compat.v2.initializers.VarianceScaling(scale=2),
+                                           name='value')(self.valuestream)
 
         # Combining value and advantage into Q-values as described above
         self.q_values = self.value + tf.subtract(self.advantage, tf.reduce_mean(self.advantage, axis=1, keepdims=True))
@@ -104,15 +92,15 @@ class DQN(object):
 
         # targetQ according to Bellman equation:
         # Q = r + gamma*max Q', calculated in the function learn()
-        self.target_q = tf.placeholder(shape=[None], dtype=tf.float32)
+        self.target_q = tf.Variable([0.0], shape=[None], dtype=tf.float32)
         # Action that was performed
-        self.action = tf.placeholder(shape=[None], dtype=tf.int32)
+        self.action = tf.Variable([0], shape=[None], dtype=tf.int32)
         # Q value of the action that was performed
         self.Q = tf.reduce_sum(tf.multiply(self.q_values, tf.one_hot(self.action, self.n_actions, dtype=tf.float32)), axis=1)
 
         # Parameter updates
-        self.loss = tf.reduce_mean(tf.losses.huber_loss(labels=self.target_q, predictions=self.Q))
-        self.optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate)
+        self.loss = tf.reduce_mean(tf.compat.v1.losses.huber_loss(labels=self.target_q, predictions=self.Q))
+        self.optimizer = tf.compat.v1.train.AdadeltaOptimizer(learning_rate=self.learning_rate)
         self.update = self.optimizer.minimize(self.loss)
 
 
