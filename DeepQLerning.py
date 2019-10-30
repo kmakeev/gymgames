@@ -645,6 +645,8 @@ def train():
             saver.save(sess, PATH+'/my_model', global_step=frame_number)
             frames_for_gif = []
 
+
+
             # Show the evaluation score in tensorboard
             summ = sess.run(EVAL_SCORE_SUMMARY, feed_dict={EVAL_SCORE_PH:np.mean(eval_rewards)})
             SUMM_WRITER.add_summary(summ, frame_number)

@@ -28,9 +28,13 @@ def learn(session, replay_memory, main_dqn, target_dqn, batch_size, gamma):
     # The main network estimates which action is best (in the next
     # state s', new_states is passed!)
     # for every transition in the minibatch
+    #valsmain = session.run(main_dqn.value, feed_dict={main_dqn.input: new_states})
+
     arg_q_max = session.run(main_dqn.best_action, feed_dict={main_dqn.input:new_states})
     # The target network estimates the Q-values (in the next state s', new_states is passed!)
     # for every transition in the minibatch
+    #vals = session.run(target_dqn.value, feed_dict={target_dqn.input: new_states})
+    # print(valsmain, vals)
     q_vals = session.run(target_dqn.q_values, feed_dict={target_dqn.input:new_states})
     double_q = q_vals[range(batch_size), arg_q_max]
     # Bellman equation. Multiplication with (1-terminal_flags) makes sure that
@@ -84,7 +88,7 @@ ENV_NAME = 'BreakoutDeterministic-v4'
 # Максимальное количество кадров для одной игры
 MAX_EPISODE_LENGTH = 18000       # Equivalent of 5 minutes of gameplay at 60 frames per second
 # Количество кадров считываемое агентов между оценками
-EVAL_FREQUENCY = 100000          # Number of frames the agent sees between evaluations
+EVAL_FREQUENCY = 200000          # Number of frames the agent sees between evaluations
 # Количество кадров для одной оценки
 EVAL_STEPS = 10000               # Number of frames for one evaluation
 # Количество выбранных действий между обновлениями целевой сети
@@ -202,7 +206,7 @@ def train():
                 episode_reward_sum = 0
                 for _ in range(MAX_EPISODE_LENGTH):
                     # (4★)
-                    atari.env.render()
+                    # atari.env.render()
                     action = explore_exploit_sched.get_action(sess, frame_number, atari.state)
                     # (5★)
                     processed_new_frame, reward, terminal, terminal_life_lost, _ = atari.step(sess, action)

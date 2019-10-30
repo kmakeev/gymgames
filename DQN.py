@@ -14,14 +14,22 @@ class FrameProcessor(object):
         """
         self.frame_height = frame_height
         self.frame_width = frame_width
+        self.frame = tf.compat.v1.placeholder(shape=[210, 160, 3], dtype=tf.uint8)
+        self.processed = tf.image.rgb_to_grayscale(self.frame)
+        self.processed = tf.image.crop_to_bounding_box(self.processed, 34, 0, 160, 160)
+        self.processed = tf.image.resize(self.processed,
+                                                [self.frame_height, self.frame_width],
+                                                method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
+        """
+        self.frame_height = frame_height
+        self.frame_width = frame_width
         self.frame = tf.Variable(tf.ones(shape=[210, 160, 3]))
         self.processed = tf.image.rgb_to_grayscale(self.frame)
         self.processed = tf.image.crop_to_bounding_box(self.processed, 34, 0, 160, 160)
-        self.processed = tf.image.resize_images(self.processed,
-                                                [self.frame_height, self.frame_width],
-                                                method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
+        self.processed = tf.image.resize(self.processed, [self.frame_height, self.frame_width],
+                                   method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
 
-
+    """
     """
     @tf.function
     def __call__(self, frame):
@@ -68,8 +76,8 @@ class DQN(object):
         self.frame_width = frame_width
         self.agent_history_length = agent_history_length
 
-        self.input = tf.compat.v2.keras.Input(shape=(self.frame_height,
-                                           self.frame_width, self.agent_history_length), dtype=tf.float32)
+        self.input = tf.keras.Input(shape=(self.frame_height,
+                                           self.frame_width, self.agent_history_length), dtype=tf.float32, name='input')
         #self.input = tf.placeholder(shape=[None, self.frame_height,
         #                                   self.frame_width, self.agent_history_length],
         #                            dtype=tf.float32)
@@ -110,9 +118,9 @@ class DQN(object):
         # targetQ according to Bellman equation:
         # Q = r + gamma*max Q', calculated in the function learn()
         #self.target_q = tf.placeholder(shape=[None], dtype=tf.float32)
-        self.target_q = tf.compat.v2.keras.Input(shape=(), dtype=tf.float32)
+        self.target_q = tf.compat.v2.keras.Input(shape=(), dtype=tf.float32, name='target_g')
         # Action that was performed
-        self.action = tf.compat.v2.keras.Input(shape=(), dtype=tf.int32)
+        self.action = tf.compat.v2.keras.Input(shape=(), dtype=tf.int32, name='action')
         # self.action = tf.placeholder(shape=[None], dtype=tf.int32)
         # Q value of the action that was performed
         self.Q = tf.reduce_sum(tf.multiply(self.q_values, tf.one_hot(self.action, self.n_actions, dtype=tf.float32)), axis=1)
