@@ -6,7 +6,11 @@ from ReplayMemory import ReplayMemory
 from ExplorationExploitationScheduler import ExplorationExploitationScheduler
 import numpy as np
 import os
+import imageio
+from skimage.transform import resize
 
+
+tf.compat.v1.enable_eager_execution()
 # Global parameters train or learn
 TRAIN = True
 # Environments game name
@@ -16,11 +20,11 @@ ENV_NAME = 'BreakoutDeterministic-v4'
 # Максимальное количество кадров для одной игры
 MAX_EPISODE_LENGTH = 18000       # Equivalent of 5 minutes of gameplay at 60 frames per second
 # Количество кадров считываемое агентов между оценками
-EVAL_FREQUENCY = 200000          # Number of frames the agent sees between evaluations
+EVAL_FREQUENCY = 20000          # Number of frames the agent sees between evaluations
 # Количество кадров для одной оценки
-EVAL_STEPS = 10000               # Number of frames for one evaluation
+EVAL_STEPS = 1000               # Number of frames for one evaluation
 # Количество выбранных действий между обновлениями целевой сети
-NETW_UPDATE_FREQ = 10000         # Number of chosen actions between updating the target network.
+NETW_UPDATE_FREQ = 5000         # Number of chosen actions between updating the target network.
 # According to Mnih et al. 2015 this is measured in the number of
 # parameter updates (every four actions), however, in the
 # DeepMind code, it is clearly measured in the number
@@ -29,7 +33,7 @@ NETW_UPDATE_FREQ = 10000         # Number of chosen actions between updating the
 DISCOUNT_FACTOR = 0.99           # gamma in the Bellman equation
 
 # Количество совершенно случайных действий, прежде чем агент начнет обучение
-REPLAY_MEMORY_START_SIZE = 50000 # Number of completely random actions,
+REPLAY_MEMORY_START_SIZE = 10000 # Number of completely random actions,
 # before the agent starts learning
 # Максимальное количество фреймой которые агент видит
 MAX_FRAMES = 30000000            # Total number of frames the agent sees
@@ -67,19 +71,34 @@ atari = Atari(ENV_NAME, NO_OP_STEPS)
 
 print("The environment has the following {} actions: {}".format(atari.env.action_space.n,
                                                                 atari.env.unwrapped.get_action_meanings()))
-input_shape = (BS, 84, 84, 4)
+#input_shape = (BS, 84, 84, 4)
 MAIN_DQN = MyModel(atari.env.action_space.n)
 MAIN_DQN.compile(optimazer=tf.keras.optimizers.Adam(),
               loss='mse')
-_ = MAIN_DQN(np.zeros(input_shape))             # build
-MAIN_DQN.summary()                              # and show summary
+#_ = MAIN_DQN(np.zeros(input_shape))             # build
+#MAIN_DQN.summary()                              # and show summary
 
 TARGET_DQN = MyModel(atari.env.action_space.n)
 TARGET_DQN.compile(optimazer=tf.keras.optimizers.Adam(),
               loss='mse')
-_ = TARGET_DQN(np.zeros(input_shape))             # build
-TARGET_DQN.summary()                              # and show summary
+#_ = TARGET_DQN(np.zeros(input_shape))             # build
+#TARGET_DQN.summary()                              # and show summary
 
+
+def generate_gif(frame_number, frames_for_gif, reward, path):
+    """
+        Args:
+            frame_number: Integer, determining the number of the current frame
+            frames_for_gif: A sequence of (210, 160, 3) frames of an Atari game in RGB
+            reward: Integer, Total reward of the episode that es ouputted as a gif
+            path: String, path where gif is saved
+    """
+    for idx, frame_idx in enumerate(frames_for_gif):
+        frames_for_gif[idx] = resize(frame_idx, (420, 320, 3),
+                                     preserve_range=True, order=0).astype(np.uint8)
+
+    imageio.mimsave(f'{path}{"ATARI_frame_{0}_reward_{1}.gif".format(frame_number, reward)}',
+                    frames_for_gif, duration=1/30)
 
 def clip_reward(reward):
     """Отсечение наград.
@@ -93,7 +112,7 @@ def clip_reward(reward):
     else:
         return -1
 
-
+# @tf.function
 def learn(replay_memory, main_dqn, target_dqn, batch_size, gamma):
     """
     Args:
@@ -137,6 +156,7 @@ def update_networks(main_dqn, target_dgn):
     for t, e in zip(target_dgn.trainable_variables, main_dqn.trainable_variables):
         t.assign(e)
 
+
 def train():
     my_replay_memory = ReplayMemory(size=MEMORY_SIZE, batch_size=BS)  # (★)
     explore_exploit_sched = ExplorationExploitationScheduler(
@@ -157,7 +177,7 @@ def train():
             episode_reward_sum = 0
             for _ in range(MAX_EPISODE_LENGTH):
                 # (4★)
-                atari.env.render()
+                #atari.env.render()
                 action = explore_exploit_sched.get_action(frame_number, atari.state)
                 # (5★)
                 processed_new_frame, reward, terminal, terminal_life_lost, _ = atari.step(action)
@@ -195,6 +215,48 @@ def train():
                 with open('rewards.dat', 'a') as reward_file:
                     print(len(rewards), frame_number,
                           np.mean(rewards[-100:]), file=reward_file)
+
+        ########################
+        ###### Evaluation ######
+        ########################
+        terminal = True
+        gif = True
+        frames_for_gif = []
+        eval_rewards = []
+        evaluate_frame_number = 0
+
+        for _ in range(EVAL_STEPS):
+            if terminal:
+                terminal_life_lost = atari.reset(evaluation=True)
+                episode_reward_sum = 0
+                terminal = False
+
+            # Fire (action 1), when a life was lost or the game just started,
+            # so that the agent does not stand around doing nothing. When playing
+            # with other environments, you might want to change this...
+            action = 1 if terminal_life_lost else explore_exploit_sched.get_action(frame_number,
+                                                                                    atari.state,
+                                                                                    evaluation=True)
+
+            processed_new_frame, reward, terminal, terminal_life_lost, new_frame = atari.step(action)
+            evaluate_frame_number += 1
+            episode_reward_sum += reward
+
+            if gif:
+                frames_for_gif.append(new_frame)
+            if terminal:
+                eval_rewards.append(episode_reward_sum)
+                gif = False # Save only the first game of the evaluation as a gif
+
+        print("Evaluation score:\n", np.mean(eval_rewards))
+        try:
+            generate_gif(frame_number, frames_for_gif, eval_rewards[0], PATH)
+        except IndexError:
+            print("No evaluation game finished")
+
+        #Save the network parameters
+        tf.saved_model.save(MAIN_DQN, PATH+'/my_model')
+        frames_for_gif = []
 
 
 if TRAIN:

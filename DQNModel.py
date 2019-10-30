@@ -46,7 +46,7 @@ class MyModel(tf.keras.Model):
                                                kernel_initializer=tf.keras.initializers.VarianceScaling(scale=2),
                                                name="advantage")
         self.value = tf.keras.layers.Dense(units=1,
-                                           kernel_initializer=tf.initializers.VarianceScaling(scale=2),
+                                           kernel_initializer=tf.keras.initializers.VarianceScaling(scale=2),
                                            name='value')
 
         # Combining value and advantage into Q-values as described above
@@ -58,9 +58,9 @@ class MyModel(tf.keras.Model):
         # targetQ according to Bellman equation:
         # Q = r + gamma*max Q', calculated in the function learn()
         #self.target_q = tf.placeholder(shape=[None], dtype=tf.float32)
-        self.target_q = tf.compat.v2.keras.Input(shape=(), dtype=tf.float32, name='target_g')
+        # self.target_q = tf.compat.v2.keras.Input(shape=(), dtype=tf.float32, name='target_g')
         # Action that was performed
-        self.action = tf.compat.v2.keras.Input(shape=(), dtype=tf.int32, name='action')
+        # self.action = tf.compat.v2.keras.Input(shape=(), dtype=tf.int32, name='action')
         # self.action = tf.placeholder(shape=[None], dtype=tf.int32)
         # Q value of the action that was performed
         # self.Q = tf.reduce_sum(tf.multiply(self.q_values, tf.one_hot(self.action, self.n_actions, dtype=tf.float32)), axis=1)
@@ -70,6 +70,7 @@ class MyModel(tf.keras.Model):
         # self.optimizer = tf.compat.v1.train.AdadeltaOptimizer(learning_rate=self.learning_rate)
         #self.update = self.optimizer.minimize(self.loss)
 
+    @tf.function
     def call(self, inputs):
         # Normalizing the input
         inputscaled = inputs/255
@@ -86,6 +87,7 @@ class MyModel(tf.keras.Model):
 
         return q_values
 
+    @tf.function
     def best_action(self, inputs):
         q_values = self.call(inputs)
         best_action = tf.argmax(q_values, 1)

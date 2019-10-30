@@ -34,7 +34,7 @@ class Atari(object):
         if evaluation:
             for _ in range(random.randint(1, self.no_op_steps)):
                 frame, _, _, _ = self.env.step(1) # Action 'Fire'
-        processed_frame = self.process_frame(frame)   # (★★★)
+        processed_frame = self.process_frame(frame)  # (★★★)
         self.state = np.repeat(processed_frame, self.agent_history_length, axis=2)
 
         return terminal_life_lost
