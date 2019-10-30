@@ -29,7 +29,7 @@ NETW_UPDATE_FREQ = 10000         # Number of chosen actions between updating the
 DISCOUNT_FACTOR = 0.99           # gamma in the Bellman equation
 
 # Количество совершенно случайных действий, прежде чем агент начнет обучение
-REPLAY_MEMORY_START_SIZE = 50000 # Number of completely random actions,
+REPLAY_MEMORY_START_SIZE = 5000 # Number of completely random actions,
 # before the agent starts learning
 # Максимальное количество фреймой которые агент видит
 MAX_FRAMES = 30000000            # Total number of frames the agent sees
