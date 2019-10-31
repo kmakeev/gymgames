@@ -20,11 +20,11 @@ ENV_NAME = 'BreakoutDeterministic-v4'
 # Максимальное количество кадров для одной игры
 MAX_EPISODE_LENGTH = 18000       # Equivalent of 5 minutes of gameplay at 60 frames per second
 # Количество кадров считываемое агентов между оценками
-EVAL_FREQUENCY = 200000          # Number of frames the agent sees between evaluations
+EVAL_FREQUENCY = 20000          # Number of frames the agent sees between evaluations
 # Количество кадров для одной оценки
 EVAL_STEPS = 10000               # Number of frames for one evaluation
 # Количество выбранных действий между обновлениями целевой сети
-NETW_UPDATE_FREQ = 50000         # Number of chosen actions between updating the target network.
+NETW_UPDATE_FREQ = 1000         # Number of chosen actions between updating the target network.
 # According to Mnih et al. 2015 this is measured in the number of
 # parameter updates (every four actions), however, in the
 # DeepMind code, it is clearly measured in the number
@@ -33,7 +33,7 @@ NETW_UPDATE_FREQ = 50000         # Number of chosen actions between updating the
 DISCOUNT_FACTOR = 0.99           # gamma in the Bellman equation
 
 # Количество совершенно случайных действий, прежде чем агент начнет обучение
-REPLAY_MEMORY_START_SIZE = 50000 # Number of completely random actions,
+REPLAY_MEMORY_START_SIZE = 5000 # Number of completely random actions,
 # before the agent starts learning
 # Максимальное количество фреймой которые агент видит
 MAX_FRAMES = 30000000            # Total number of frames the agent sees
@@ -100,7 +100,6 @@ def generate_gif(frame_number, frames_for_gif, reward, path):
     imageio.mimsave(f'{path}{"ATARI_frame_{0}_reward_{1}.gif".format(frame_number, reward)}',
                     frames_for_gif, duration=1/30)
 
-
 def clip_reward(reward):
     """Отсечение наград.
     Поскольку шкала оценок сильно варьируется от игры к игре, принято все положительные награды равны 1,
@@ -148,7 +147,7 @@ def learn(replay_memory, main_dqn, target_dqn, batch_size, gamma):
     # if the game is over, targetQ=rewards
     target_q = rewards + (gamma*double_q * (1-terminal_flags))
     # Gradient descend step to update the parameters of the main network
-    loss = main_dqn.train_on_batch(states, target_q)
+    loss = main_dqn.train_on_batch(states/255, target_q)
 
     return loss
 
@@ -164,7 +163,6 @@ def train():
         MAIN_DQN, atari.env.action_space.n,
         replay_memory_start_size=REPLAY_MEMORY_START_SIZE,
         max_frames=MAX_FRAMES)
-    update_networks(MAIN_DQN, TARGET_DQN)
     frame_number = 0
     rewards = []
     loss_list = []

@@ -92,3 +92,17 @@ class MyModel(tf.keras.Model):
         q_values = self.call(inputs)
         best_action = tf.argmax(q_values, 1)
         return best_action
+
+    """
+    # @tf.function
+    def update_loss(self, inputs, target_q, actions):
+        q_values = self.call(inputs)
+        Q = tf.reduce_sum(tf.multiply(q_values, tf.one_hot(actions, self.n_actions, dtype=tf.float32)), axis=1)
+        loss = lambda: tf.reduce_mean(tf.losses.huber_loss(labels=target_q, predictions=Q))
+        self.optimizer = tf.keras.optimizers.Adam(learning_rate=self.learning_rate)
+        var_list_fn = lambda: self.trainable_weights
+
+        update = self.optimizer.minimize(loss, var_list_fn)
+
+        return (self.loss, update)
+    """
