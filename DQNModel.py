@@ -26,17 +26,17 @@ class MyModel(tf.keras.Model):
 
         self.conv1 = tf.keras.layers.Conv2D(filters=32, kernel_size=[8, 8], strides=4,
                                             kernel_initializer=tf.keras.initializers.VarianceScaling(scale=2),
-                                            padding="valid", activation=tf.nn.relu, use_bias=False, name='conv1')
+                                            padding="valid", activation='relu', use_bias=False, name='conv1')
 
         self.conv2 = tf.keras.layers.Conv2D(filters=64, kernel_size=[4, 4], strides=2,
                                             kernel_initializer=tf.keras.initializers.VarianceScaling(scale=2),
-                                            padding="valid", activation=tf.nn.relu, use_bias=False, name='conv2')
+                                            padding="valid", activation='relu', use_bias=False, name='conv2')
         self.conv3 = tf.keras.layers.Conv2D(filters=64, kernel_size=[3, 3], strides=1,
                                             kernel_initializer=tf.keras.initializers.VarianceScaling(scale=2),
-                                            padding="valid", activation=tf.nn.relu, use_bias=False, name='conv3')
+                                            padding="valid", activation='relu', use_bias=False, name='conv3')
         self.conv4 =tf.keras.layers.Conv2D(filters=hidden, kernel_size=[7, 7], strides=1,
                                            kernel_initializer=tf.keras.initializers.VarianceScaling(scale=2),
-                                           padding="valid", activation=tf.nn.relu, use_bias=False, name='conv4')
+                                           padding="valid", activation='relu', use_bias=False, name='conv4')
 
         # Splitting into value and advantage stream
         #self.valuestream, self.advantagestream = tf.split(self.conv4, 2, 3)
@@ -44,10 +44,10 @@ class MyModel(tf.keras.Model):
         self.advantagestream = tf.keras.layers.Flatten()
         self.advantage = tf.keras.layers.Dense(units=self.n_actions,
                                                kernel_initializer=tf.keras.initializers.VarianceScaling(scale=2),
-                                               name="advantage")
+                                               name="advantage", activation='relu')
         self.value = tf.keras.layers.Dense(units=1,
                                            kernel_initializer=tf.keras.initializers.VarianceScaling(scale=2),
-                                           name='value')
+                                           name='value', activation='relu')
 
         # Combining value and advantage into Q-values as described above
         # self.q_values = self.value + tf.subtract(self.advantage, tf.reduce_mean(self.advantage, axis=1, keepdims=True))
