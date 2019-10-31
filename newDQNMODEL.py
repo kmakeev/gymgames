@@ -20,11 +20,11 @@ ENV_NAME = 'BreakoutDeterministic-v4'
 # Максимальное количество кадров для одной игры
 MAX_EPISODE_LENGTH = 18000       # Equivalent of 5 minutes of gameplay at 60 frames per second
 # Количество кадров считываемое агентов между оценками
-EVAL_FREQUENCY = 20000          # Number of frames the agent sees between evaluations
+EVAL_FREQUENCY = 100000          # Number of frames the agent sees between evaluations
 # Количество кадров для одной оценки
-EVAL_STEPS = 10000               # Number of frames for one evaluation
+EVAL_STEPS = 5000               # Number of frames for one evaluation
 # Количество выбранных действий между обновлениями целевой сети
-NETW_UPDATE_FREQ = 1000         # Number of chosen actions between updating the target network.
+NETW_UPDATE_FREQ = 10000         # Number of chosen actions between updating the target network.
 # According to Mnih et al. 2015 this is measured in the number of
 # parameter updates (every four actions), however, in the
 # DeepMind code, it is clearly measured in the number
@@ -33,7 +33,7 @@ NETW_UPDATE_FREQ = 1000         # Number of chosen actions between updating the 
 DISCOUNT_FACTOR = 0.99           # gamma in the Bellman equation
 
 # Количество совершенно случайных действий, прежде чем агент начнет обучение
-REPLAY_MEMORY_START_SIZE = 5000 # Number of completely random actions,
+REPLAY_MEMORY_START_SIZE = 50000 # Number of completely random actions,
 # before the agent starts learning
 # Максимальное количество фреймой которые агент видит
 MAX_FRAMES = 30000000            # Total number of frames the agent sees
@@ -55,7 +55,7 @@ HIDDEN = 1024                    # Number of filters in the final convolutional 
 # поток преимуществ и поток создания ценности, которые  имеют форму
 # (1,1,512).
 # Cкорость обучения для оптимизатора Adam
-LEARNING_RATE = 0.00001          # Set to 0.00025 in Pong for quicker results.
+LEARNING_RATE = 0.00025          # Set to 0.00025 in Pong for quicker results.
 # Hessel et al. 2017 used 0.0000625
 # Размер пачки для обучения
 BS = 32                          # Batch size
@@ -72,14 +72,14 @@ atari = Atari(ENV_NAME, NO_OP_STEPS)
 print("The environment has the following {} actions: {}".format(atari.env.action_space.n,
                                                                 atari.env.unwrapped.get_action_meanings()))
 #input_shape = (BS, 84, 84, 4)
-MAIN_DQN = MyModel(atari.env.action_space.n)
-MAIN_DQN.compile(optimazer=tf.keras.optimizers.Adam(),
+MAIN_DQN = MyModel(atari.env.action_space.n, learning_rate=LEARNING_RATE)
+MAIN_DQN.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=LEARNING_RATE),
               loss='mse')
 #_ = MAIN_DQN(np.zeros(input_shape))             # build
 #MAIN_DQN.summary()                              # and show summary
 
-TARGET_DQN = MyModel(atari.env.action_space.n)
-TARGET_DQN.compile(optimazer=tf.keras.optimizers.Adam(),
+TARGET_DQN = MyModel(atari.env.action_space.n, learning_rate=LEARNING_RATE)
+TARGET_DQN.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=LEARNING_RATE),
               loss='mse')
 #_ = TARGET_DQN(np.zeros(input_shape))             # build
 #TARGET_DQN.summary()                              # and show summary
@@ -177,7 +177,7 @@ def train():
             episode_reward_sum = 0
             for _ in range(MAX_EPISODE_LENGTH):
                 # (4★)
-                #atari.env.render()
+                # atari.env.render()
                 action = explore_exploit_sched.get_action(frame_number, atari.state)
                 # (5★)
                 processed_new_frame, reward, terminal, terminal_life_lost, _ = atari.step(action)

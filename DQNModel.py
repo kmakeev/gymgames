@@ -48,7 +48,7 @@ class MyModel(tf.keras.Model):
         self.value = tf.keras.layers.Dense(units=1,
                                            kernel_initializer=tf.keras.initializers.VarianceScaling(scale=2),
                                            name='value', activation='relu')
-
+        #self.optimizer = tf.keras.optimizers.Adam(learning_rate=self.learning_rate)
         # Combining value and advantage into Q-values as described above
         # self.q_values = self.value + tf.subtract(self.advantage, tf.reduce_mean(self.advantage, axis=1, keepdims=True))
         #self.best_action = tf.argmax(self.q_values, 1)
