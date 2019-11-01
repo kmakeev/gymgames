@@ -48,6 +48,9 @@ class MyModel(tf.keras.Model):
         self.value = tf.keras.layers.Dense(units=1,
                                            kernel_initializer=tf.keras.initializers.VarianceScaling(scale=2),
                                            name='value', activation='relu')
+        self.lambda_layer = tf.keras.layers.Lambda(lambda x: x - tf.reduce_mean(x))
+        self.combine = tf.keras.layers.Add()
+
         #self.optimizer = tf.keras.optimizers.Adam(learning_rate=self.learning_rate)
         # Combining value and advantage into Q-values as described above
         # self.q_values = self.value + tf.subtract(self.advantage, tf.reduce_mean(self.advantage, axis=1, keepdims=True))
@@ -83,26 +86,28 @@ class MyModel(tf.keras.Model):
         advantagestream = self.advantagestream(advantagestream)
         advantage = self.advantage(advantagestream)
         value = self.value(valuestream)
-        q_values = value + tf.subtract(advantage, tf.reduce_mean(advantage, axis=1, keepdims=True))
+        #q_values = value + tf.subtract(advantage, tf.reduce_mean(advantage, axis=1, keepdims=True))
+        norm_advantage = self.lambda_layer(advantage)
+        combined = self.combine([value, norm_advantage])
+        return combined
 
-        return q_values
-
+    """
     @tf.function
     def best_action(self, inputs):
         q_values = self.call(inputs)
         best_action = tf.argmax(q_values, 1)
         return best_action
 
-    """
-    # @tf.function
-    def update_loss(self, inputs, target_q, actions):
+
+    @tf.function
+    def Q(self, inputs, actions):
         q_values = self.call(inputs)
         Q = tf.reduce_sum(tf.multiply(q_values, tf.one_hot(actions, self.n_actions, dtype=tf.float32)), axis=1)
-        loss = lambda: tf.reduce_mean(tf.losses.huber_loss(labels=target_q, predictions=Q))
-        self.optimizer = tf.keras.optimizers.Adam(learning_rate=self.learning_rate)
-        var_list_fn = lambda: self.trainable_weights
+        # loss = lambda: tf.reduce_mean(tf.losses.huber_loss(labels=target_q, predictions=Q))
+        #self.optimizer = tf.keras.optimizers.Adam(learning_rate=self.learning_rate)
+        #var_list_fn = lambda: self.trainable_weights
 
-        update = self.optimizer.minimize(loss, var_list_fn)
-
-        return (self.loss, update)
+        #update = self.optimizer.minimize(loss, var_list_fn)
+    
+        return Q
     """

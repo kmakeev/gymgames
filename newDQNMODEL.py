@@ -20,11 +20,11 @@ ENV_NAME = 'BreakoutDeterministic-v4'
 # Максимальное количество кадров для одной игры
 MAX_EPISODE_LENGTH = 18000       # Equivalent of 5 minutes of gameplay at 60 frames per second
 # Количество кадров считываемое агентов между оценками
-EVAL_FREQUENCY = 100000          # Number of frames the agent sees between evaluations
+EVAL_FREQUENCY = 10000          # Number of frames the agent sees between evaluations
 # Количество кадров для одной оценки
-EVAL_STEPS = 5000               # Number of frames for one evaluation
+EVAL_STEPS = 1000               # Number of frames for one evaluation
 # Количество выбранных действий между обновлениями целевой сети
-NETW_UPDATE_FREQ = 10000         # Number of chosen actions between updating the target network.
+NETW_UPDATE_FREQ = 1000         # Number of chosen actions between updating the target network.
 # According to Mnih et al. 2015 this is measured in the number of
 # parameter updates (every four actions), however, in the
 # DeepMind code, it is clearly measured in the number
@@ -33,10 +33,10 @@ NETW_UPDATE_FREQ = 10000         # Number of chosen actions between updating the
 DISCOUNT_FACTOR = 0.99           # gamma in the Bellman equation
 
 # Количество совершенно случайных действий, прежде чем агент начнет обучение
-REPLAY_MEMORY_START_SIZE = 50000 # Number of completely random actions,
+REPLAY_MEMORY_START_SIZE = 11000 # Number of completely random actions,
 # before the agent starts learning
 # Максимальное количество фреймой которые агент видит
-MAX_FRAMES = 30000000            # Total number of frames the agent sees
+MAX_FRAMES = 900000            # Total number of frames the agent sees
 # Количество переходов, хранящихся в памяти воспроизведения
 MEMORY_SIZE = 1000000            # Number of transitions stored in the replay memory
 # Количество действий «NOOP» или «FIRE» в начале
@@ -55,7 +55,8 @@ HIDDEN = 1024                    # Number of filters in the final convolutional 
 # поток преимуществ и поток создания ценности, которые  имеют форму
 # (1,1,512).
 # Cкорость обучения для оптимизатора Adam
-LEARNING_RATE = 0.00025          # Set to 0.00025 in Pong for quicker results.
+LEARNING_RATE = 0.00001          # Set to 0.00025 in Pong for quicker results.
+TAU = 0.08                       # Thr merging rate of the weight values between the primary and target networks
 # Hessel et al. 2017 used 0.0000625
 # Размер пачки для обучения
 BS = 32                          # Batch size
@@ -84,6 +85,8 @@ TARGET_DQN.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=LEARNING_RAT
 #_ = TARGET_DQN(np.zeros(input_shape))             # build
 #TARGET_DQN.summary()                              # and show summary
 
+for t, e in zip(TARGET_DQN.trainable_variables, MAIN_DQN.trainable_variables):
+    t.assign(e)
 
 def generate_gif(frame_number, frames_for_gif, reward, path):
     """
@@ -130,23 +133,25 @@ def learn(replay_memory, main_dqn, target_dqn, batch_size, gamma):
     """
     # Draw a minibatch from the replay memory
     states, actions, rewards, new_states, terminal_flags = replay_memory.get_minibatch()
-    # The main network estimates which action is best (in the next
-    # state s', new_states is passed!)
-    # for every transition in the minibatch
-    # arg_q_max = session.run(main_dqn.best_action, feed_dict={main_dqn.input:new_states})
-
-    arg_q_max = main_dqn.best_action(new_states)
-
-    # The target network estimates the Q-values (in the next state s', new_states is passed!)
-    # for every transition in the minibatch
-    q_vals = target_dqn(new_states)
-    arg_q_max = arg_q_max.numpy()
-    q_vals = q_vals.numpy()
-    double_q = q_vals[range(batch_size), arg_q_max]
-    # Bellman equation. Multiplication with (1-terminal_flags) makes sure that
-    # if the game is over, targetQ=rewards
-    target_q = rewards + (gamma*double_q * (1-terminal_flags))
-    # Gradient descend step to update the parameters of the main network
+    # Predict Q(s,a) from the main network
+    main_qt = main_dqn(states)
+    # Predict Q(s`,a`)
+    main_qtp1 = main_dqn(new_states)
+    # copy the prim_qt tensor into the target_q tensor - we then will update one index corresponding to the max action
+    target_q = main_qt.numpy()
+    updates = rewards
+    # Get valid idxs in batch, terminal_flags not True
+    valid_idxs = np.invert(terminal_flags)
+    batch_idxs = np.arange(batch_size)
+    # extract the best action from the next state
+    prim_action_tp1 = np.argmax(main_qtp1.numpy(), axis=1)
+    # get all the q values for the next state
+    q_from_target = target_dqn(new_states)
+    # add the discounted estimated reward from the selected action (prim_action_tp1)
+    updates[valid_idxs] += gamma*q_from_target.numpy()[batch_idxs[valid_idxs], prim_action_tp1[valid_idxs]]
+    # update the q target to train towards
+    target_q[batch_idxs, actions] = updates
+    # run a training batch
     loss = main_dqn.train_on_batch(states/255, target_q)
 
     return loss
@@ -154,13 +159,13 @@ def learn(replay_memory, main_dqn, target_dqn, batch_size, gamma):
 
 def update_networks(main_dqn, target_dgn):
     for t, e in zip(target_dgn.trainable_variables, main_dqn.trainable_variables):
-        t.assign(e)
+        t.assign(t*(1 - TAU) + e*TAU)
 
 
 def train():
     my_replay_memory = ReplayMemory(size=MEMORY_SIZE, batch_size=BS)  # (★)
     explore_exploit_sched = ExplorationExploitationScheduler(
-        MAIN_DQN, atari.env.action_space.n,
+        MAIN_DQN, atari.env.action_space.n, eps_annealing_frames=12000,
         replay_memory_start_size=REPLAY_MEMORY_START_SIZE,
         max_frames=MAX_FRAMES)
     frame_number = 0
@@ -177,7 +182,7 @@ def train():
             episode_reward_sum = 0
             for _ in range(MAX_EPISODE_LENGTH):
                 # (4★)
-                # atari.env.render()
+                atari.env.render()
                 action = explore_exploit_sched.get_action(frame_number, atari.state)
                 # (5★)
                 processed_new_frame, reward, terminal, terminal_life_lost, _ = atari.step(action)
@@ -211,7 +216,7 @@ def train():
 
             # Output the progress:
             if len(rewards) % 10 == 0:  # каждую 10-ю игру
-                print(len(rewards), frame_number, np.mean(rewards[-100:]))
+                print(len(rewards), frame_number, np.mean(rewards[-100:]), np.mean(loss_list))
                 with open('rewards.dat', 'a') as reward_file:
                     print(len(rewards), frame_number,
                           np.mean(rewards[-100:]), file=reward_file)
@@ -230,7 +235,7 @@ def train():
                 terminal_life_lost = atari.reset(evaluation=True)
                 episode_reward_sum = 0
                 terminal = False
-
+            atari.env.render()
             # Fire (action 1), when a life was lost or the game just started,
             # so that the agent does not stand around doing nothing. When playing
             # with other environments, you might want to change this...
@@ -255,7 +260,7 @@ def train():
             print("No evaluation game finished")
 
         #Save the network parameters
-        tf.saved_model.save(MAIN_DQN, PATH+'/my_model')
+        # tf.saved_model.save(MAIN_DQN, PATH+'my_model')
         frames_for_gif = []
 
 
