@@ -44,10 +44,10 @@ class MyModel(tf.keras.Model):
         self.advantagestream = tf.keras.layers.Flatten()
         self.advantage = tf.keras.layers.Dense(units=self.n_actions,
                                                kernel_initializer=tf.keras.initializers.VarianceScaling(scale=2),
-                                               name="advantage", activation='relu')
+                                               name="advantage")
         self.value = tf.keras.layers.Dense(units=1,
                                            kernel_initializer=tf.keras.initializers.VarianceScaling(scale=2),
-                                           name='value', activation='relu')
+                                           name='value')
         self.lambda_layer = tf.keras.layers.Lambda(lambda x: x - tf.reduce_mean(x))
         self.combine = tf.keras.layers.Add()
 
@@ -86,7 +86,7 @@ class MyModel(tf.keras.Model):
         advantagestream = self.advantagestream(advantagestream)
         advantage = self.advantage(advantagestream)
         value = self.value(valuestream)
-        #q_values = value + tf.subtract(advantage, tf.reduce_mean(advantage, axis=1, keepdims=True))
+        # q_values = value + tf.subtract(advantage, tf.reduce_mean(advantage, axis=1, keepdims=True))
         norm_advantage = self.lambda_layer(advantage)
         combined = self.combine([value, norm_advantage])
         return combined

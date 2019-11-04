@@ -181,8 +181,8 @@ class ExplorationExploitationScheduler(object):
         elif frame_number >= self.replay_memory_start_size + self.eps_annealing_frames:
             eps = self.slope_2*frame_number + self.intercept_2
 
-        if np.random.rand(1) < eps:                                 # 𝜖 -  коэффициэнт компромисса разведки и эксплуатации (при 1 - только исследование)
-            return np.random.randint(0, self.n_actions)             # Случайное число от 0 до максимального количества действий
+        if np.random.rand(1) < eps:
+            return np.random.randint(0, self.n_actions)
         return session.run(self.DQN.best_action, feed_dict={self.DQN.input:[state]})[0]
 
 
@@ -419,7 +419,7 @@ tf.reset_default_graph()
 
 # Control parameters
 MAX_EPISODE_LENGTH = 18000       # Equivalent of 5 minutes of gameplay at 60 frames per second
-EVAL_FREQUENCY = 200000          # Number of frames the agent sees between evaluations
+EVAL_FREQUENCY = 40000          # Number of frames the agent sees between evaluations
 EVAL_STEPS = 10000               # Number of frames for one evaluation
 NETW_UPDATE_FREQ = 10000         # Number of chosen actions between updating the target network.
 # According to Mnih et al. 2015 this is measured in the number of
@@ -427,7 +427,7 @@ NETW_UPDATE_FREQ = 10000         # Number of chosen actions between updating the
 # DeepMind code, it is clearly measured in the number
 # of actions the agent choses
 DISCOUNT_FACTOR = 0.99           # gamma in the Bellman equation
-REPLAY_MEMORY_START_SIZE = 10000 # Number of completely random actions,
+REPLAY_MEMORY_START_SIZE = 25000 # Number of completely random actions,
 # before the agent starts learning
 MAX_FRAMES = 30000000            # Total number of frames the agent sees
 MEMORY_SIZE = 1000000            # Number of transitions stored in the replay memory
@@ -454,8 +454,8 @@ SUMM_WRITER = tf.summary.FileWriter(os.path.join(SUMMARIES, RUNID))
 atari = Atari(ENV_NAME, NO_OP_STEPS)
 
 print("The environment has the following {} actions: {}".format(atari.env.action_space.n,
-                                                                atari.env.unwrapped.get_action_meanings()))
 
+                                                                atari.env.unwrapped.get_action_meanings()))
 # main DQN and target DQN networks:
 with tf.variable_scope('mainDQN'):
     MAIN_DQN = DQN(atari.env.action_space.n, HIDDEN, LEARNING_RATE)   # (★★)
@@ -530,29 +530,29 @@ def train():
                     # Clip the reward
                     clipped_reward = clip_reward(reward)
 
-                    # (7★) Store transition in the replay memory сохранить переход в памяти replay памяти
+                    # (7★) Store transition in the replay memory
                     my_replay_memory.add_experience(action=action,
                                                     frame=processed_new_frame[:, :, 0],
                                                     reward=clipped_reward,
                                                     terminal=terminal_life_lost)
-                    # При большем количестве случайных действий ( REPLAY_MEMORY_START_SIZE= 10000)
-                    if frame_number % UPDATE_FREQ == 0 and frame_number > REPLAY_MEMORY_START_SIZE: # Каждые четыре действия и  выполняется шаг градиентного спуска
+
+                    if frame_number % UPDATE_FREQ == 0 and frame_number > REPLAY_MEMORY_START_SIZE:
                         loss = learn(sess, my_replay_memory, MAIN_DQN, TARGET_DQN,
                                      BS, gamma = DISCOUNT_FACTOR) # (8★)
                         loss_list.append(loss)
-                    if frame_number % NETW_UPDATE_FREQ == 0 and frame_number > REPLAY_MEMORY_START_SIZE: # Количество выбранных действий между обновлениями целевой сети.
+                    if frame_number % NETW_UPDATE_FREQ == 0 and frame_number > REPLAY_MEMORY_START_SIZE:
                         update_networks(sess) # (9★)
 
-                    if terminal:            # при окончании игры
+                    if terminal:
                         terminal = False
                         break
 
-                rewards.append(episode_reward_sum)              # Набрано очков за игру
+                rewards.append(episode_reward_sum)
 
                 # Output the progress:
-                if len(rewards) % 10 == 0:                      #каждую 10-ю игру
+                if len(rewards) % 10 == 0:
                     # Scalar summaries for tensorboard
-                    if frame_number > REPLAY_MEMORY_START_SIZE:         #Каждые 10 проигрышей при большем количестве случайных действий ( REPLAY_MEMORY_START_SIZE= 10000)
+                    if frame_number > REPLAY_MEMORY_START_SIZE:
                         summ = sess.run(PERFORMANCE_SUMMARIES,
                                         feed_dict={LOSS_PH:np.mean(loss_list),
                                                    REWARD_PH:np.mean(rewards[-100:])})
@@ -560,7 +560,7 @@ def train():
                         SUMM_WRITER.add_summary(summ, frame_number)
                         loss_list = []
                     # Histogramm summaries for tensorboard
-                    summ_param = sess.run(PARAM_SUMMARIES)                  #Для сводки на Tensorboard
+                    summ_param = sess.run(PARAM_SUMMARIES)
                     SUMM_WRITER.add_summary(summ_param, frame_number)
 
                     print(len(rewards), frame_number, np.mean(rewards[-100:]))
@@ -610,19 +610,18 @@ def train():
             saver.save(sess, PATH+'/my_model', global_step=frame_number)
             frames_for_gif = []
 
-
-
             # Show the evaluation score in tensorboard
             summ = sess.run(EVAL_SCORE_SUMMARY, feed_dict={EVAL_SCORE_PH:np.mean(eval_rewards)})
             SUMM_WRITER.add_summary(summ, frame_number)
             with open('rewardsEval.dat', 'a') as eval_reward_file:
                 print(frame_number, np.mean(eval_rewards), file=eval_reward_file)
 
+
 if TRAIN:
     train()
 
 save_files_dict = {
-    'BreakoutDeterministic-v4':("trained/breakout/", "my_model-7016868.meta"),
+    'BreakoutDeterministic-v4':("trained/breakout/", "my_model-15845555.meta"),
     'PongDeterministic-v4':("trained/pong/", "my_model-3217770.meta")
 }
 
