@@ -86,10 +86,10 @@ class MyModel(tf.keras.Model):
         advantagestream = self.advantagestream(advantagestream)
         advantage = self.advantage(advantagestream)
         value = self.value(valuestream)
-        # q_values = value + tf.subtract(advantage, tf.reduce_mean(advantage, axis=1, keepdims=True))
+        q_values = value + tf.subtract(advantage, tf.reduce_mean(advantage, axis=1, keepdims=True))
         norm_advantage = self.lambda_layer(advantage)
         combined = self.combine([value, norm_advantage])
-        return combined
+        return q_values
 
     """
     @tf.function
