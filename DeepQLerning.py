@@ -419,7 +419,7 @@ tf.reset_default_graph()
 
 # Control parameters
 MAX_EPISODE_LENGTH = 18000       # Equivalent of 5 minutes of gameplay at 60 frames per second
-EVAL_FREQUENCY = 40000          # Number of frames the agent sees between evaluations
+EVAL_FREQUENCY = 10000          # Number of frames the agent sees between evaluations
 EVAL_STEPS = 10000               # Number of frames for one evaluation
 NETW_UPDATE_FREQ = 10000         # Number of chosen actions between updating the target network.
 # According to Mnih et al. 2015 this is measured in the number of
@@ -427,7 +427,7 @@ NETW_UPDATE_FREQ = 10000         # Number of chosen actions between updating the
 # DeepMind code, it is clearly measured in the number
 # of actions the agent choses
 DISCOUNT_FACTOR = 0.99           # gamma in the Bellman equation
-REPLAY_MEMORY_START_SIZE = 25000 # Number of completely random actions,
+REPLAY_MEMORY_START_SIZE = 5000 # Number of completely random actions,
 # before the agent starts learning
 MAX_FRAMES = 30000000            # Total number of frames the agent sees
 MEMORY_SIZE = 1000000            # Number of transitions stored in the replay memory
