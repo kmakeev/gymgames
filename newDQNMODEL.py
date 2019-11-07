@@ -20,7 +20,7 @@ ENV_NAME = 'BreakoutDeterministic-v4'
 # Максимальное количество кадров для одной игры
 MAX_EPISODE_LENGTH = 18000       # Equivalent of 5 minutes of gameplay at 60 frames per second
 # Количество кадров считываемое агентов между оценками
-EVAL_FREQUENCY = 10000          # Number of frames the agent sees between evaluations
+EVAL_FREQUENCY = 200000          # Number of frames the agent sees between evaluations
 # Количество кадров для записи GIF одной эволюции
 EVAL_STEPS = 10000               # Number of frames for one evaluation
 # Количество выбранных действий между обновлениями целевой сети
@@ -33,7 +33,7 @@ NETW_UPDATE_FREQ = 10000         # Number of chosen actions between updating the
 DISCOUNT_FACTOR = 0.99           # gamma in the Bellman equation
 
 # Количество совершенно случайных действий, прежде чем агент начнет обучение
-REPLAY_MEMORY_START_SIZE = 5000  # Number of completely random actions,
+REPLAY_MEMORY_START_SIZE = 50000  # Number of completely random actions,
 # before the agent starts learning
 # Максимальное количество фреймой которые агент видит
 MAX_FRAMES = 3000000            # Total number of frames the agent sees
@@ -140,25 +140,28 @@ def learn(replay_memory, main_dqn, target_dqn, batch_size, gamma):
         # Predict Q(s`,a`)
         main_qtp1 = main_dqn(new_states)
         # copy the prim_qt tensor into the target_q tensor - we then will update one index corresponding to the max action
-        target_q = main_qt.numpy()
-        updates = rewards
+        #target_q = main_qt.numpy()
+        #updates = rewards
         # Get valid idxs in batch, terminal_flags not True
-        valid_idxs = np.invert(terminal_flags)
-        batch_idxs = np.arange(batch_size)
+        # valid_idxs = np.invert(terminal_flags)
+        # batch_idxs = np.arange(batch_size)
         # extract the best action from the next state
         main_action_tp1 = np.argmax(main_qtp1.numpy(), axis=1)
         # get all the q values for the next state
         q_from_target = target_dqn(new_states)
         # add the discounted estimated reward from the selected action (prim_action_tp1)
-        updates[valid_idxs] += gamma*q_from_target.numpy()[batch_idxs[valid_idxs], main_action_tp1[valid_idxs]]
+        #updates[valid_idxs] += gamma*q_from_target.numpy()[batch_idxs[valid_idxs], main_action_tp1[valid_idxs]]
         # update the q target to train towards
-        target_q[batch_idxs, actions] = updates
+        #target_q[batch_idxs, actions] = updates
         # run a training batch
         # Check other
         # arg_q_max = main_dqn.best_action(new_states).numpy()
-        #double_q = q_from_target.numpy()[range(batch_size), arg_q_max]
+        double_q = q_from_target.numpy()[range(batch_size), main_action_tp1]
+        # print(double_q)
+        target_q = rewards + (gamma * double_q * (1 - terminal_flags))
+        # print(target_q)
         #updates2 = rewards + (gamma * double_q * (1 - terminal_flags))
-        # Q = main_dqn.Q(states, actions)
+        Q = main_dqn.Q(states, actions)
         # print(updates)
         # print(updates2)
         # print(Q)
@@ -179,7 +182,7 @@ def learn(replay_memory, main_dqn, target_dqn, batch_size, gamma):
         # opt_op.run()
 
         # regularization_loss = tf.math.add_n(main_dqn.losses)
-        total_loss = main_dqn.loss(main_qt, target_q)
+        total_loss = main_dqn.loss(target_q, Q)
     gradients = tape.gradient(total_loss, main_dqn.trainable_variables)
     opt.apply_gradients(zip(gradients, main_dqn.trainable_variables))
 
@@ -214,7 +217,7 @@ def train():
             episode_reward_sum = 0
             for _ in range(MAX_EPISODE_LENGTH):
                 # (4★)
-                atari.env.render()
+                # atari.env.render()
                 action = explore_exploit_sched.get_action(frame_number, atari.state)
                 # (5★)
                 processed_new_frame, reward, terminal, terminal_life_lost, _ = atari.step(action)

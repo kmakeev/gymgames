@@ -97,7 +97,7 @@ class MyModel(tf.keras.Model):
         best_action = tf.argmax(q_values, 1)
         return best_action
 
-    # @tf.function
+    @tf.function
     def Q(self, inputs, actions):
         q_values = self.call(inputs)
         one_hot = tf.one_hot(actions, self.n_actions, dtype=tf.float32)
