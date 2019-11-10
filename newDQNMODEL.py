@@ -10,7 +10,7 @@ import imageio
 from skimage.transform import resize
 
 
-tf.compat.v1.enable_eager_execution()
+# tf.compat.v1.enable_eager_execution()
 # Global parameters train or learn
 TRAIN = True
 # Environments game name
@@ -36,7 +36,7 @@ DISCOUNT_FACTOR = 0.99           # gamma in the Bellman equation
 REPLAY_MEMORY_START_SIZE = 50000  # Number of completely random actions,
 # before the agent starts learning
 # Максимальное количество фреймой которые агент видит
-MAX_FRAMES = 3000000            # Total number of frames the agent sees
+MAX_FRAMES = 30000000            # Total number of frames the agent sees
 # Количество переходов, хранящихся в памяти воспроизведения
 MEMORY_SIZE = 1000000            # Number of transitions stored in the replay memory
 # Количество действий «NOOP» или «FIRE» в начале
@@ -133,68 +133,27 @@ def learn(replay_memory, main_dqn, target_dqn, batch_size, gamma):
     """
     # Draw a minibatch from the replay memory
     states, actions, rewards, new_states, terminal_flags = replay_memory.get_minibatch()
-    # Predict Q(s,a) from the main network
     opt = main_dqn.optimizer
+
     with tf.GradientTape() as tape:
-        main_qt = main_dqn(states, training=True)
-        # Predict Q(s`,a`)
         main_qtp1 = main_dqn(new_states)
-        # copy the prim_qt tensor into the target_q tensor - we then will update one index corresponding to the max action
-        #target_q = main_qt.numpy()
-        #updates = rewards
-        # Get valid idxs in batch, terminal_flags not True
-        # valid_idxs = np.invert(terminal_flags)
-        # batch_idxs = np.arange(batch_size)
-        # extract the best action from the next state
-        main_action_tp1 = np.argmax(main_qtp1.numpy(), axis=1)
-        # get all the q values for the next state
         q_from_target = target_dqn(new_states)
-        # add the discounted estimated reward from the selected action (prim_action_tp1)
-        #updates[valid_idxs] += gamma*q_from_target.numpy()[batch_idxs[valid_idxs], main_action_tp1[valid_idxs]]
-        # update the q target to train towards
-        #target_q[batch_idxs, actions] = updates
-        # run a training batch
-        # Check other
-        # arg_q_max = main_dqn.best_action(new_states).numpy()
-        double_q = q_from_target.numpy()[range(batch_size), main_action_tp1]
-        # print(double_q)
-        target_q = rewards + (gamma * double_q * (1 - terminal_flags))
-        # print(target_q)
-        #updates2 = rewards + (gamma * double_q * (1 - terminal_flags))
         Q = main_dqn.Q(states, actions)
-        # print(updates)
-        # print(updates2)
-        # print(Q)
-        # print(target_q)
-        # target_q[batch_idxs, actions] = Q
-        # print(target_q)
-        # print(main_dqn.optimizer.get_slot_names())
-        # print(main_dqn.optimizer.varaibles())
-        # target_q_old = main_qt.numpy()
-        # l = main_dqn.loss
-        # loss_fn = lambda: tf.keras.losses.mse(l(target_q_old, target_q))
-        # loss = l(target_q_old, target_q)
 
-        # print(loss)
-
-        # var_names = lambda: [v.name for v in main_dqn.trainable_variables]
-        # opt_op = opt.minimize(loss_fn, main_dqn.trainable_variables)
-        # opt_op.run()
-
-        # regularization_loss = tf.math.add_n(main_dqn.losses)
+        main_action_tp1 = np.argmax(main_qtp1.numpy(), axis=1)
+        double_q = q_from_target.numpy()[range(batch_size), main_action_tp1]
+        target_q = rewards + (gamma * double_q * (1 - terminal_flags))
         total_loss = main_dqn.loss(target_q, Q)
+
     gradients = tape.gradient(total_loss, main_dqn.trainable_variables)
     opt.apply_gradients(zip(gradients, main_dqn.trainable_variables))
-
-    # loss = main_dqn.train_on_batch(states, target_q)
-    # print('Loss - ', loss)
     return total_loss
 
 
 def update_networks(main_dqn, target_dgn):
     for t, e in zip(target_dgn.trainable_variables, main_dqn.trainable_variables):
-        #t.assign(e)
-        t.assign(t*(1 - TAU) + e*TAU)
+        t.assign(e)
+        # t.assign(t*(1 - TAU) + e*TAU)
 
 
 def train():
@@ -296,11 +255,48 @@ def train():
         except IndexError:
             print("No evaluation game finished")
         atari.env.close()
-        #Save the network parameters
-        # tf.saved_model.save(MAIN_DQN, PATH+'my_model')
-        frames_for_gif = []
+        # Save the network parameters
+        tf.saved_model.save(MAIN_DQN, PATH+'my_model')
+        # frames_for_gif = []
 
 
 if TRAIN:
     train()
+
+save_files_dict = {
+    'BreakoutDeterministic-v4': "output/breakout/my_model/",
+    'PongDeterministic-v4': "trained/pong/my_model/"
+}
+
+if not TRAIN:
+
+    gif_path = "GIF/"
+    os.makedirs(gif_path, exist_ok=True)
+
+    trained_path = save_files_dict[ENV_NAME]
+    imported = tf.compat.v2.saved_model.load(trained_path)
+    explore_exploit_sched = ExplorationExploitationScheduler(
+        imported, atari.env.action_space.n,
+        replay_memory_start_size=REPLAY_MEMORY_START_SIZE,
+        max_frames=MAX_FRAMES)
+    frames_for_gif = []
+    terminal_life_lost = atari.reset(evaluation = True)
+    episode_reward_sum = 0
+    while True:
+        atari.env.render()
+        if terminal_life_lost:
+            action = 1
+        else:
+            action = explore_exploit_sched.get_action(0, atari.state, evaluation=True)
+        processed_new_frame, reward, terminal, terminal_life_lost, new_frame = atari.step(action)
+        episode_reward_sum += reward
+        frames_for_gif.append(new_frame)
+        if terminal == True:
+            break
+
+    atari.env.close()
+    print("The total reward is {}".format(episode_reward_sum))
+    print("Creating gif...")
+    generate_gif(0, frames_for_gif, episode_reward_sum, gif_path)
+    print("Gif created, check the folder {}".format(gif_path))
 

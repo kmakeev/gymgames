@@ -51,27 +51,6 @@ class MyModel(tf.keras.Model):
         # self.lambda_layer = tf.keras.layers.Lambda(lambda x: x - tf.reduce_mean(x))
         # self.combine = tf.keras.layers.Add()
 
-        #self.optimizer = tf.keras.optimizers.Adam(learning_rate=self.learning_rate)
-        # Combining value and advantage into Q-values as described above
-        # self.q_values = self.value + tf.subtract(self.advantage, tf.reduce_mean(self.advantage, axis=1, keepdims=True))
-        #self.best_action = tf.argmax(self.q_values, 1)
-
-        # The next lines perform the parameter update. This will be explained in detail later.
-
-        # targetQ according to Bellman equation:
-        # Q = r + gamma*max Q', calculated in the function learn()
-        #self.target_q = tf.placeholder(shape=[None], dtype=tf.float32)
-        # self.target_q = tf.compat.v2.keras.Input(shape=(), dtype=tf.float32, name='target_g')
-        # Action that was performed
-        # self.action = tf.compat.v2.keras.Input(shape=(), dtype=tf.int32, name='action')
-        # self.action = tf.placeholder(shape=[None], dtype=tf.int32)
-        # Q value of the action that was performed
-        # self.Q = tf.reduce_sum(tf.multiply(self.q_values, tf.one_hot(self.action, self.n_actions, dtype=tf.float32)), axis=1)
-
-        # Parameter updates
-        # self.loss = tf.reduce_mean(tf.compat.v1.losses.huber_loss(labels=self.target_q, predictions=self.Q))
-        # self.optimizer = tf.compat.v1.train.AdadeltaOptimizer(learning_rate=self.learning_rate)
-        #self.update = self.optimizer.minimize(self.loss)
 
     @tf.function
     def call(self, inputs):
@@ -103,10 +82,4 @@ class MyModel(tf.keras.Model):
         one_hot = tf.one_hot(actions, self.n_actions, dtype=tf.float32)
         multiply = tf.multiply(q_values, one_hot)
         Q = tf.reduce_sum(multiply, axis=1)
-        # loss = lambda: tf.reduce_mean(tf.losses.huber_loss(labels=target_q, predictions=Q))
-        #self.optimizer = tf.keras.optimizers.Adam(learning_rate=self.learning_rate)
-        #var_list_fn = lambda: self.trainable_weights
-
-        #update = self.optimizer.minimize(loss, var_list_fn)
-    
         return Q
