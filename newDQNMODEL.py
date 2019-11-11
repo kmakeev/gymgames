@@ -14,8 +14,9 @@ from skimage.transform import resize
 # Global parameters train or learn
 TRAIN = True
 # Environments game name
-ENV_NAME = 'BreakoutDeterministic-v4'
+# ENV_NAME = 'BreakoutDeterministic-v4'
 # ENV_NAME = 'PongDeterministic-v4'
+ENV_NAME = 'MsPacmanDeterministic-v4'
 # Control parameters
 # Максимальное количество кадров для одной игры
 MAX_EPISODE_LENGTH = 18000       # Equivalent of 5 minutes of gameplay at 60 frames per second
@@ -176,7 +177,7 @@ def train():
             episode_reward_sum = 0
             for _ in range(MAX_EPISODE_LENGTH):
                 # (4★)
-                # atari.env.render()
+                atari.env.render()
                 action = explore_exploit_sched.get_action(frame_number, atari.state)
                 # (5★)
                 processed_new_frame, reward, terminal, terminal_life_lost, _ = atari.step(action)
@@ -264,8 +265,9 @@ if TRAIN:
     train()
 
 save_files_dict = {
-    'BreakoutDeterministic-v4': "output/breakout/my_model/",
-    'PongDeterministic-v4': "trained/pong/my_model/"
+    'BreakoutDeterministic-v4': "trained/breakout/my_model",
+    'PongDeterministic-v4': "trained/pong/my_model",
+    'MsPacmanDeterministic-v4': "trained/pacman/my_model"
 }
 
 if not TRAIN:
