@@ -1,14 +1,15 @@
-from __future__ import absolute_import, division, print_function, unicode_literals
-import tensorflow as tf
-from DQNModel import MyModel
+from Algorithms.A2C import A2C
 from atari import Atari
-from ReplayMemory import ReplayMemory
-from ExplorationExploitationScheduler import ExplorationExploitationScheduler
-import numpy as np
+from gym.spaces import Box, Discrete, Tuple
 import os
 import imageio
 from skimage.transform import resize
+import numpy as np
+import tensorflow as tf
 
+
+from ReplayMemory import ReplayMemory
+from ExplorationExploitationScheduler import ExplorationExploitationScheduler
 
 # tf.compat.v1.enable_eager_execution()
 # Global parameters train or learn
@@ -73,21 +74,49 @@ atari = Atari(ENV_NAME, NO_OP_STEPS)
 
 print("The environment has the following {} actions: {}".format(atari.env.action_space.n,
                                                                 atari.env.unwrapped.get_action_meanings()))
-# input_shape = (BS, 84, 84, 4)
-MAIN_DQN = MyModel(atari.env.action_space.n, learning_rate=LEARNING_RATE)
-MAIN_DQN.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=LEARNING_RATE),
-              loss=tf.keras.losses.Huber())
-# MAIN_DQN(np.zeros(input_shape))             # build
-# MAIN_DQN.summary()                              # and show summary
+MAX_EPISODE = 10000
+BASE_DIR = os.path.join('c:\\Python34\\Gym\\', 'A2CModel')
 
-TARGET_DQN = MyModel(atari.env.action_space.n, learning_rate=LEARNING_RATE)
-TARGET_DQN.compile(optimizer=tf.keras.optimizers.Adam(),
-              loss=tf.keras.losses.Huber())
-#_ = TARGET_DQN(np.zeros(input_shape))             # build
-#TARGET_DQN.summary()                              # and show summary
+atari = Atari(ENV_NAME, NO_OP_STEPS)
 
-for t, e in zip(TARGET_DQN.trainable_variables, MAIN_DQN.trainable_variables):
-    t.assign(e)
+if isinstance(atari.env.observation_space, Box):
+    s_dim = atari.env.observation_space.shape[0] if len(atari.env.observation_space.shape) == 1 else 0
+else:
+    s_dim = int(atari.env.observation_space.n)
+
+if len(atari.env.observation_space.shape) == 3:
+    visual_sources = 1
+    visual_resolution = list(atari.env.observation_space.shape)
+else:
+    visual_sources = 0
+    visual_resolution = []
+
+if isinstance(atari.env.action_space, Box):
+    assert len(atari.env.action_space.shape) == 1, 'if action space is continuous, the shape length of action must equal to 1'
+    a_dim_or_list = atari.env.action_space.shape
+    action_type = 'continuous'
+elif isinstance(atari.env.action_space, Tuple):
+    assert all([isinstance(i, Discrete) for i in
+                atari.env.action_space]) == True, 'if action space is Tuple, each item in it must have type Discrete'
+    a_dim_or_list = [i.n for i in atari.env.action_space]
+    action_type = 'discrete'
+else:
+    a_dim_or_list = [atari.env.action_space.n]
+    action_type = 'discrete'
+
+
+model = A2C(
+        s_dim=s_dim,
+        visual_sources=visual_sources,
+        visual_resolution=visual_resolution,
+        a_dim_or_list=a_dim_or_list,
+        action_type=action_type,
+        max_episode=MAX_EPISODE,
+        base_dir=BASE_DIR,
+        logger2file=None,
+        out_graph=None,
+)
+
 
 def generate_gif(frame_number, frames_for_gif, reward, path):
     """
@@ -104,6 +133,7 @@ def generate_gif(frame_number, frames_for_gif, reward, path):
     imageio.mimsave(f'{path}{"ATARI_frame_{0}_reward_{1}.gif".format(frame_number, reward)}',
                     frames_for_gif, duration=1/30)
 
+
 def clip_reward(reward):
     """Отсечение наград.
     Поскольку шкала оценок сильно варьируется от игры к игре, принято все положительные награды равны 1,
@@ -116,7 +146,7 @@ def clip_reward(reward):
     else:
         return -1
 
-# @tf.function
+
 def learn(replay_memory, main_dqn, target_dqn, batch_size, gamma):
     """
     Args:
@@ -133,33 +163,13 @@ def learn(replay_memory, main_dqn, target_dqn, batch_size, gamma):
     """
     # Draw a minibatch from the replay memory
     states, actions, rewards, new_states, terminal_flags = replay_memory.get_minibatch()
-    opt = main_dqn.optimizer
-
-    with tf.GradientTape() as tape:
-        main_qtp1 = main_dqn(new_states)
-        q_from_target = target_dqn(new_states)
-        Q = main_dqn.Q(states, actions)
-
-        main_action_tp1 = np.argmax(main_qtp1.numpy(), axis=1)
-        double_q = q_from_target.numpy()[range(batch_size), main_action_tp1]
-        target_q = rewards + (gamma * double_q * (1 - terminal_flags))
-        total_loss = main_dqn.loss(target_q, Q)
-
-    gradients = tape.gradient(total_loss, main_dqn.trainable_variables)
-    opt.apply_gradients(zip(gradients, main_dqn.trainable_variables))
-    return total_loss
-
-
-def update_networks(main_dqn, target_dgn):
-    for t, e in zip(target_dgn.trainable_variables, main_dqn.trainable_variables):
-        t.assign(e)
-        # t.assign(t*(1 - TAU) + e*TAU)
+    model.learn(episode=episode, step=step)
 
 
 def train():
     my_replay_memory = ReplayMemory(size=MEMORY_SIZE, batch_size=BS)  # (★)
     explore_exploit_sched = ExplorationExploitationScheduler(
-        MAIN_DQN, atari.env.action_space.n,
+        model, atari.env.action_space.n,
         replay_memory_start_size=REPLAY_MEMORY_START_SIZE,
         max_frames=MAX_FRAMES)
     frame_number = 0
@@ -194,8 +204,7 @@ def train():
                                                 terminal=terminal_life_lost)
                 # При большем количестве случайных действий ( REPLAY_MEMORY_START_SIZE)
                 if frame_number % UPDATE_FREQ == 0 and frame_number > REPLAY_MEMORY_START_SIZE:  # Каждые четыре действия и  выполняется шаг градиентного спуска
-                    loss = learn(my_replay_memory, MAIN_DQN, TARGET_DQN,
-                                 BS, gamma=DISCOUNT_FACTOR)  # (8★)
+                    loss = learn(my_replay_memory, BS)  # (8★)
                     loss_list.append(loss)
 
                 if frame_number % NETW_UPDATE_FREQ == 0 and frame_number > REPLAY_MEMORY_START_SIZE:  # Количество выбранных действий между обновлениями целевой сети.
@@ -256,48 +265,8 @@ def train():
             print("No evaluation game finished")
         atari.env.close()
         # Save the network parameters
-        tf.saved_model.save(MAIN_DQN, PATH+'my_model')
+        tf.saved_model.save(model, PATH+'my_model')
         # frames_for_gif = []
-
 
 if TRAIN:
     train()
-
-save_files_dict = {
-    'BreakoutDeterministic-v4': "trained/breakout/my_model",
-    'PongDeterministic-v4': "trained/pong/my_model",
-    'MsPacmanDeterministic-v4': "trained/pacman/my_model"
-}
-
-if not TRAIN:
-
-    gif_path = "GIF/"
-    os.makedirs(gif_path, exist_ok=True)
-
-    trained_path = save_files_dict[ENV_NAME]
-    imported = tf.compat.v2.saved_model.load(trained_path)
-    explore_exploit_sched = ExplorationExploitationScheduler(
-        imported, atari.env.action_space.n,
-        replay_memory_start_size=REPLAY_MEMORY_START_SIZE,
-        max_frames=MAX_FRAMES)
-    frames_for_gif = []
-    terminal_life_lost = atari.reset(evaluation = True)
-    episode_reward_sum = 0
-    while True:
-        atari.env.render()
-        if terminal_life_lost:
-            action = 1
-        else:
-            action = explore_exploit_sched.get_action(0, atari.state, evaluation=True)
-        processed_new_frame, reward, terminal, terminal_life_lost, new_frame = atari.step(action)
-        episode_reward_sum += reward
-        frames_for_gif.append(new_frame)
-        if terminal == True:
-            break
-
-    atari.env.close()
-    print("The total reward is {}".format(episode_reward_sum))
-    print("Creating gif...")
-    generate_gif(0, frames_for_gif, episode_reward_sum, gif_path)
-    print("Gif created, check the folder {}".format(gif_path))
-

@@ -1,4 +1,4 @@
-from DQN import DQN, ReplayMemory, ExplorationExploitationScheduler, TargetNetworkUpdater
+from breakoutfirst.DQN import DQN, ReplayMemory, ExplorationExploitationScheduler, TargetNetworkUpdater
 from atari import Atari
 import imageio
 from skimage.transform import resize

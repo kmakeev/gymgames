@@ -1,12 +1,10 @@
 import gym
 import random
 import numpy as np
-from statistics import median, mean
-from collections import Counter
+from statistics import mean
 import tensorflow as tf
 import pandas as pd
-from breakoutModel2 import MyModel
-import pygame
+from breakoutfirst.breakoutModel2 import MyModel
 import json
 import requests
 import matplotlib.pyplot as plt

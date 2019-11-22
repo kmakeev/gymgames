@@ -3,20 +3,21 @@ import random
 import numpy as np
 from statistics import median, mean
 from collections import Counter
-import tensorflow as tf
 import pandas as pd
-from MyModel import MyModel
+from breakoutfirst.MyModel import MyModel
 
 
-SCORE_REQUIMENT = 4
-AGE = 1
+SCORE_REQUIMENT = 50
+AGE = 4
 FEATURES = ['observation', 'action']
-INIT = True
-TRAIN = True
-STEP = 500
+INIT = False
+TRAIN = False
+SAVE = False
+STEP = 5000
+saved_model_path = "c:\\Python34\\gym\\CartPoleModel"
 
 
-def initial(env, legal_actions, count_games, count_steps):
+def initial(env, count_games, count_steps):
     training_data = []
     accepted_scores = []
     for _ in range(count_games):
@@ -24,8 +25,7 @@ def initial(env, legal_actions, count_games, count_steps):
         game_memory = []
         prev_observation = []
         for _ in range(count_steps):
-            env.render()
-            action = random.choice(legal_actions)
+            action = random.randrange(0, 2)
             observation, reward, done, info = env.step(action)
             if len(prev_observation):
                 game_memory.append([prev_observation, action])
@@ -38,32 +38,29 @@ def initial(env, legal_actions, count_games, count_steps):
             for data in game_memory:
                 training_data.append([data[0].tolist(), data[1]])
         env.reset()
-    if len(training_data) > 0:
-        for_train = pd.DataFrame(np.array(training_data), columns=FEATURES)
-        print('Average accepted score:', mean(accepted_scores))
-        print('Median  - ', median(accepted_scores))
-        print(Counter(accepted_scores))
-    else:
-        print('Not acceptet accepted score more than required')
-        for_train = pd.DataFrame()
+    for_train = pd.DataFrame(np.array(training_data), columns=FEATURES)
+    print('Average accepted score:', mean(accepted_scores))
+    print('Median  - ', median(accepted_scores))
+    print(Counter(accepted_scores))
+
     return for_train
 
 
-env = gym.make('Breakout-v0')
-print('Actions space - ',  env.action_space)
-print('Observations space - ', env.observation_space)
-legal_actions = [0, 1, 2, 3]
+env = gym.make('CartPole-v0')
 env.reset()
 # training_data.to_csv('saved.csv')
 model = MyModel()
 
 if INIT:
-    training_data = initial(env, legal_actions, 10, 500)
+
+    training_data = initial(env, 10000, 5000)
     model.train(training_data)
 
 test_data = initial(env, 100, 50)
 model.test(test_data)
 
+if SAVE:
+    path = model.save_model(saved_model_path)
 
 scores = []
 choices = []
@@ -90,7 +87,7 @@ for each_game in range(1):
         score += reward
         if done:
             break
-    if score > SCORE_REQUIMENT * AGE:
+    if score >= SCORE_REQUIMENT * AGE:
         for data in game_memory:
             training_data.append([data[0].tolist(), data[1]])
     scores.append(score)
@@ -107,6 +104,10 @@ if len(training_data) and TRAIN:
     model.train(for_train)
     print("DONE!")
 
+# model = model.classifier.get_model()  # get a fresh model
+# saved_model_path = "/tmp/tf_save"
+# tf.saved_model.save(model, saved_model_path)
+
 """
 for i_episode in range(2):
     observation = env.reset()
@@ -119,6 +120,12 @@ for i_episode in range(2):
             print("Finish after {} timesteps".format(t+1))
             break
 env.close()
+
+nohup tensorflow_model_server \
+  --rest_api_port=8501 \
+  --model_name=CartPole-v0 \
+  --model_base_path="/home/konstantin/tf_models/" >server.log 2>&1
+
 
 """
 

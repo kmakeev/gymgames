@@ -1,14 +1,9 @@
 import gym
 import random
 import numpy as np
-from statistics import median, mean
-from collections import Counter
 import tensorflow as tf
 import pandas as pd
-from breakoutModel3 import MyModel, initial
-import pygame
-import json
-import requests
+from breakoutfirst.breakoutModel3 import MyModel, initial
 import matplotlib.pyplot as plt
 import datetime
 
