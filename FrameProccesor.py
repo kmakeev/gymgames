@@ -24,8 +24,8 @@ class FrameProcessor(object):
         frame = tf.reshape(frame, [210, 160, 3])
         frame = tf.cast(frame, tf.uint8)
         processed = tf.image.rgb_to_grayscale(frame)
-        # processed = tf.image.crop_to_bounding_box(processed, 34, 0, 160, 160)
-        processed = tf.image.crop_to_bounding_box(processed, 0, 0, 172, 160)            # For pacman game
+        processed = tf.image.crop_to_bounding_box(processed, 34, 0, 160, 160)
+        # processed = tf.image.crop_to_bounding_box(processed, 0, 0, 172, 160)            # For pacman game
         processed = tf.image.resize(processed, [self.frame_height, self.frame_width],
                                          method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
         # squezze_gray_image = tf.squeeze(processed).numpy()                            #wiev play-field

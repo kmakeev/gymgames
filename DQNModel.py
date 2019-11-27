@@ -52,7 +52,7 @@ class MyModel(tf.keras.Model):
         # self.combine = tf.keras.layers.Add()
 
 
-    @tf.function
+    # @tf.function
     def call(self, inputs):
         # Normalizing the input
         inputscaled = inputs/255

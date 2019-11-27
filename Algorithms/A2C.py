@@ -2,8 +2,8 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 import numpy as np
 import tensorflow as tf
 import tensorflow_probability as tfp
-from utils import sth
-from tf2_utils import get_TensorSpecs, gaussian_clip_reparam_sample, gaussian_likelihood, gaussian_entropy
+# from utils import sth
+# from tf2_utils import get_TensorSpecs, gaussian_clip_reparam_sample, gaussian_likelihood, gaussian_entropy
 
 
 activation_fn = tf.keras.activations.tanh

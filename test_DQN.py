@@ -1,4 +1,4 @@
-from Algorithms.A2C import A2C
+from Algorithms.Dqn import DQN
 from atari import Atari
 from gym.spaces import Box, Discrete, Tuple
 import os
@@ -9,15 +9,15 @@ import tensorflow as tf
 
 
 from ReplayMemory import ReplayMemory
-from ExplorationExploitationScheduler import ExplorationExploitationScheduler
+from NewExplorationExploitationScheduler import ExplorationExploitationScheduler
 
 # tf.compat.v1.enable_eager_execution()
 # Global parameters train or learn
 TRAIN = True
 # Environments game name
-# ENV_NAME = 'BreakoutDeterministic-v4'
+ENV_NAME = 'BreakoutDeterministic-v4'
 # ENV_NAME = 'PongDeterministic-v4'
-ENV_NAME = 'MsPacmanDeterministic-v4'
+# ENV_NAME = 'MsPacmanDeterministic-v4'
 # Control parameters
 # Максимальное количество кадров для одной игры
 MAX_EPISODE_LENGTH = 18000       # Equivalent of 5 minutes of gameplay at 60 frames per second
@@ -33,6 +33,8 @@ NETW_UPDATE_FREQ = 10000         # Number of chosen actions between updating the
 # of actions the agent choses
 # 𝛾 - коэффициент дисконтирования
 DISCOUNT_FACTOR = 0.99           # gamma in the Bellman equation
+
+MAX_EPISODE = 10000
 
 # Количество совершенно случайных действий, прежде чем агент начнет обучение
 REPLAY_MEMORY_START_SIZE = 50000  # Number of completely random actions,
@@ -74,10 +76,8 @@ atari = Atari(ENV_NAME, NO_OP_STEPS)
 
 print("The environment has the following {} actions: {}".format(atari.env.action_space.n,
                                                                 atari.env.unwrapped.get_action_meanings()))
-MAX_EPISODE = 10000
-BASE_DIR = os.path.join('c:\\Python34\\Gym\\', 'A2CModel')
 
-atari = Atari(ENV_NAME, NO_OP_STEPS)
+BASE_DIR = os.path.join('c:\\Python\\gymgames\\', 'DQNMODEL')
 
 if isinstance(atari.env.observation_space, Box):
     s_dim = atari.env.observation_space.shape[0] if len(atari.env.observation_space.shape) == 1 else 0
@@ -87,6 +87,7 @@ else:
 if len(atari.env.observation_space.shape) == 3:
     visual_sources = 1
     visual_resolution = list(atari.env.observation_space.shape)
+    visual_resolution = [84, 84, 4]
 else:
     visual_sources = 0
     visual_resolution = []
@@ -105,16 +106,15 @@ else:
     action_type = 'discrete'
 
 
-model = A2C(
-        s_dim=s_dim,
-        visual_sources=visual_sources,
+model = DQN(
         visual_resolution=visual_resolution,
-        a_dim_or_list=a_dim_or_list,
-        action_type=action_type,
+        a_counts=atari.env.action_space.n,
         max_episode=MAX_EPISODE,
+        gamma=DISCOUNT_FACTOR,
         base_dir=BASE_DIR,
-        logger2file=None,
-        out_graph=None,
+        lr=LEARNING_RATE,
+        # logger2file=None,
+        # out_graph=None,
 )
 
 
@@ -147,23 +147,11 @@ def clip_reward(reward):
         return -1
 
 
-def learn(replay_memory, main_dqn, target_dqn, batch_size, gamma):
-    """
-    Args:
-        replay_memory: A ReplayMemory object
-        main_dqn: A DQN object
-        target_dqn: A DQN object
-        batch_size: Integer, Batch size
-        gamma: Float, discount factor for the Bellman equation
-    Returns:
-        loss: The loss of the minibatch, for tensorboard
-    Draws a minibatch from the replay memory, calculates the
-    target Q-value that the prediction Q-value is regressed to.
-    Then a parameter update is performed on the main DQN.
-    """
-    # Draw a minibatch from the replay memory
-    states, actions, rewards, new_states, terminal_flags = replay_memory.get_minibatch()
-    model.learn(episode=episode, step=step)
+def learn(replay_memory, episode):
+
+    visual_s, a, r, visual_s_, done = replay_memory.get_minibatch()
+    summaries = model.learn(visual_s, a, r.reshape(-1, 1), visual_s_, done.reshape(-1, 1).astype(np.float32), episode=episode)
+    return summaries['LOSS/loss']
 
 
 def train():
@@ -174,8 +162,8 @@ def train():
         max_frames=MAX_FRAMES)
     frame_number = 0
     rewards = []
-
-    while frame_number < MAX_FRAMES:
+    episode_num = 0
+    while frame_number < MAX_FRAMES and episode_num < MAX_EPISODE:
         ########################
         ####### Training #######
         ########################
@@ -186,7 +174,7 @@ def train():
             episode_reward_sum = 0
             for _ in range(MAX_EPISODE_LENGTH):
                 # (4★)
-                atari.env.render()
+                # atari.env.render()
                 action = explore_exploit_sched.get_action(frame_number, atari.state)
                 # (5★)
                 processed_new_frame, reward, terminal, terminal_life_lost, _ = atari.step(action)
@@ -204,11 +192,12 @@ def train():
                                                 terminal=terminal_life_lost)
                 # При большем количестве случайных действий ( REPLAY_MEMORY_START_SIZE)
                 if frame_number % UPDATE_FREQ == 0 and frame_number > REPLAY_MEMORY_START_SIZE:  # Каждые четыре действия и  выполняется шаг градиентного спуска
-                    loss = learn(my_replay_memory, BS)  # (8★)
+                    loss = learn(my_replay_memory, episode_num)  # (8★)
                     loss_list.append(loss)
 
                 if frame_number % NETW_UPDATE_FREQ == 0 and frame_number > REPLAY_MEMORY_START_SIZE:  # Количество выбранных действий между обновлениями целевой сети.
-                    update_networks(MAIN_DQN, TARGET_DQN)  # (9★)
+                    model.update_target_net_weights(model.q_target_net.weights, model.q_net.weights)
+                    #update_networks(MAIN_DQN, TARGET_DQN)  # (9★)
 
 
                 if terminal:  # при окончании игры
@@ -223,7 +212,7 @@ def train():
                 with open('rewards.dat', 'a') as reward_file:
                     print(len(rewards), frame_number,
                           np.mean(rewards[-100:]), file=reward_file)
-
+        episode_num += 1
         ########################
         ###### Evaluation ######
         ########################
@@ -265,7 +254,7 @@ def train():
             print("No evaluation game finished")
         atari.env.close()
         # Save the network parameters
-        tf.saved_model.save(model, PATH+'my_model')
+        # tf.saved_model.save(model, PATH+'my_model')
         # frames_for_gif = []
 
 if TRAIN:

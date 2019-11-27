@@ -14,9 +14,9 @@ from skimage.transform import resize
 # Global parameters train or learn
 TRAIN = True
 # Environments game name
-# ENV_NAME = 'BreakoutDeterministic-v4'
+ENV_NAME = 'BreakoutDeterministic-v4'
 # ENV_NAME = 'PongDeterministic-v4'
-ENV_NAME = 'MsPacmanDeterministic-v4'
+# ENV_NAME = 'MsPacmanDeterministic-v4'
 # Control parameters
 # Максимальное количество кадров для одной игры
 MAX_EPISODE_LENGTH = 18000       # Equivalent of 5 minutes of gameplay at 60 frames per second
@@ -34,7 +34,7 @@ NETW_UPDATE_FREQ = 10000         # Number of chosen actions between updating the
 DISCOUNT_FACTOR = 0.99           # gamma in the Bellman equation
 
 # Количество совершенно случайных действий, прежде чем агент начнет обучение
-REPLAY_MEMORY_START_SIZE = 50000  # Number of completely random actions,
+REPLAY_MEMORY_START_SIZE = 1000  # Number of completely random actions,
 # before the agent starts learning
 # Максимальное количество фреймой которые агент видит
 MAX_FRAMES = 30000000            # Total number of frames the agent sees
