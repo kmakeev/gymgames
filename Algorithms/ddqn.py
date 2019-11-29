@@ -28,7 +28,7 @@ class ImageNet(tf.keras.Model):
 
     def __init__(self, name):
         super().__init__(name=name)
-        """
+
         self.conv1 = tf.keras.layers.Conv2D(filters=32, kernel_size=[8, 8], strides=4,
                                             kernel_initializer=tf.keras.initializers.VarianceScaling(scale=2),
                                             padding="valid", activation='relu', use_bias=False, name='conv1')
@@ -43,13 +43,8 @@ class ImageNet(tf.keras.Model):
                                             kernel_initializer=tf.keras.initializers.VarianceScaling(scale=2),
                                             padding="valid", activation='relu', use_bias=False, name='conv4')
 
-        """
-        self.conv1 = tf.keras.layers.Conv2D(filters=32, kernel_size=[8, 8], strides=[4, 4], padding='valid',
-                                            activation=activation_fn)
-        self.conv2 = tf.keras.layers.Conv2D(filters=64, kernel_size=[4, 4], strides=[2, 2], padding='valid',
-                                            activation=activation_fn)
-        self.conv3 = tf.keras.layers.Conv2D(filters=64, kernel_size=[3, 3], strides=[1, 1], padding='valid',
-                                            activation=activation_fn)
+
+
 
         self.flatten = tf.keras.layers.Flatten()
         self.fc = tf.keras.layers.Dense(128, activation_fn)
@@ -60,6 +55,7 @@ class ImageNet(tf.keras.Model):
         features = self.conv1(features)
         features = self.conv2(features)
         features = self.conv3(features)
+        features = self.conv4(features)
         features = self.flatten(features)
         features = self.fc(features)
         return features
@@ -83,7 +79,7 @@ class critic_q_all(ImageNet):
         return q
 
 
-class DQN(tf.keras.Model):
+class DDQN(tf.keras.Model):
     def __init__(self,
                  visual_resolution,
                  a_counts,
@@ -150,7 +146,7 @@ class DQN(tf.keras.Model):
             q_next = self.q_net(visual_s_)
             next_max_action = tf.argmax(q_next, axis=1)
             next_max_action_one_hot = tf.one_hot(tf.squeeze(next_max_action), self.a_counts, 1., 0., dtype=tf.float32)
-            next_max_action_one_hot = tf.cast(next_max_action_one_hot, tf.float32)
+            # next_max_action_one_hot = tf.cast(next_max_action_one_hot, tf.float32)
             q_target_next = self.q_target_net(visual_s_)
             q_eval = tf.reduce_sum(tf.multiply(q, tf.one_hot(a, self.a_counts, dtype=tf.float32)), axis=1, keepdims=True)
             q_target_next_max = tf.reduce_sum(tf.multiply(q_target_next, next_max_action_one_hot), axis=1,

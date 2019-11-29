@@ -1,4 +1,4 @@
-from Algorithms.Dqn import DQN
+from Algorithms.ddqn import DDQN
 from atari import Atari
 from gym.spaces import Box, Discrete, Tuple
 import os
@@ -106,7 +106,7 @@ else:
     action_type = 'discrete'
 
 
-model = DQN(
+model = DDQN(
         visual_resolution=visual_resolution,
         a_counts=atari.env.action_space.n,
         max_episode=MAX_EPISODE,

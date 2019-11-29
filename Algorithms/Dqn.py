@@ -28,7 +28,7 @@ class ImageNet(tf.keras.Model):
 
     def __init__(self, name):
         super().__init__(name=name)
-        """
+
         self.conv1 = tf.keras.layers.Conv2D(filters=32, kernel_size=[8, 8], strides=4,
                                             kernel_initializer=tf.keras.initializers.VarianceScaling(scale=2),
                                             padding="valid", activation='relu', use_bias=False, name='conv1')
@@ -43,10 +43,7 @@ class ImageNet(tf.keras.Model):
                                             kernel_initializer=tf.keras.initializers.VarianceScaling(scale=2),
                                             padding="valid", activation='relu', use_bias=False, name='conv4')
         
-        """
-        self.conv1 = tf.keras.layers.Conv2D(filters=32, kernel_size=[8, 8], strides=[4, 4], padding='valid', activation=activation_fn)
-        self.conv2 = tf.keras.layers.Conv2D(filters=64, kernel_size=[4, 4], strides=[2, 2], padding='valid', activation=activation_fn)
-        self.conv3 = tf.keras.layers.Conv2D(filters=64, kernel_size=[3, 3], strides=[1, 1], padding='valid', activation=activation_fn)
+
 
         self.flatten = tf.keras.layers.Flatten()
         self.fc = tf.keras.layers.Dense(128, activation_fn)
@@ -57,6 +54,7 @@ class ImageNet(tf.keras.Model):
         features = self.conv1(features)
         features = self.conv2(features)
         features = self.conv3(features)
+        features = self.conv4(features)
         features = self.flatten(features)
         features = self.fc(features)
         return features
