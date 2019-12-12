@@ -19,25 +19,6 @@ class mlp(tf.keras.Sequential):
             self.add(tf.keras.layers.Dense(output_shape, out_activation))
 
 
-class mlp_with_noisy(tf.keras.Sequential):
-    def __init__(self, hidden_units, act_fn=activation_fn, output_shape=1, out_activation=None, out_layer=True):
-        """
-        Add a gaussian noise to to the result of Dense layer. The added gaussian noise is not related to the origin input.
-        Args:
-            hidden_units: like [32, 32]
-            output_shape: units of last layer
-            out_activation: activation function of last layer
-            out_layer: whether need specifing last layer or not
-        """
-        super().__init__()
-        for u in hidden_units:
-            self.add(tf.keras.layers.GaussianNoise(0.4))  # Or use kwargs
-            self.add(tf.keras.layers.Dense(u, act_fn))
-        if out_layer:
-            self.add(tf.keras.layers.GaussianNoise(0.4))
-            self.add(tf.keras.layers.Dense(output_shape, out_activation))
-
-
 class ImageNet(tf.keras.Model):
     '''
     Processing image input observation information.
@@ -98,7 +79,31 @@ class critic_q_all(ImageNet):
         return q
 
 
-class DDQN(tf.keras.Model):
+class critic_dueling(ImageNet):
+    '''
+    Neural network for dueling deep Q network.
+    Input:
+        states: [batch_size, state_dim]
+    Output:
+        state value: [batch_size, 1]
+        advantage: [batch_size, action_number]
+    '''
+
+    def __init__(self, visual_dim, output_shape, name, hidden_units):
+        super().__init__(name=name)
+        self.share = mlp(hidden_units['share'], out_layer=False)
+        self.v = mlp(hidden_units['v'], output_shape=1, out_activation=None)
+        self.adv = mlp(hidden_units['adv'], output_shape=output_shape, out_activation=None)
+        self(tf.keras.Input(shape=visual_dim))
+
+    def call(self, visual_input):
+        features = self.share(super().call(visual_input))
+        v = self.v(features)
+        adv = self.adv(features)
+        return v, adv
+
+
+class DDDQN(tf.keras.Model):
     def __init__(self,
                  visual_resolution,
                  a_counts,
@@ -107,7 +112,11 @@ class DDQN(tf.keras.Model):
                  gamma,
                  assign_interval=1000,
                  lr=5.0e-4,
-                 hidden_units=[32, 32]):
+                 hidden_units={
+                     'share': [128],
+                     'v': [128],
+                     'adv': [128]
+                 }):
         super().__init__()
         self.visual_dim = visual_resolution
         self.a_counts = a_counts
@@ -117,9 +126,13 @@ class DDQN(tf.keras.Model):
         self.IS_w = 1
         self.assign_interval = assign_interval
 
-        self.q_net = critic_q_all(self.visual_dim, self.a_counts, 'q_net', hidden_units)
-        self.q_target_net = critic_q_all(self.visual_dim, self.a_counts, 'q_target_net', hidden_units)
-        self.update_target_net_weights(self.q_target_net.weights, self.q_net.weights)
+        # self.q_net = critic_q_all(self.visual_dim, self.a_counts, 'q_net', hidden_units)
+        # self.q_target_net = critic_q_all(self.visual_dim, self.a_counts, 'q_target_net', hidden_units)
+
+        self.dueling_net = critic_dueling(self.visual_dim, self.a_counts, 'dueling_net', hidden_units)
+        self.dueling_target_net = critic_dueling(self.visual_dim, self.a_counts, 'dueling_target_net',
+                                                    hidden_units)
+        self.update_target_net_weights(self.dueling_target_net.weights, self.dueling_net.weights)
         self.lr = tf.keras.optimizers.schedules.PolynomialDecay(lr, self.max_episode, 1e-10, power=1.0)
         self.optimizer = tf.keras.optimizers.Adam(learning_rate=self.lr(self.episode))
 
@@ -139,8 +152,8 @@ class DDQN(tf.keras.Model):
 
     @tf.function
     def _get_action(self, visual_s):
-        q_values = self.q_net(visual_s)
-        return tf.argmax(q_values, axis=1)
+        _, advs = self.dueling_net(visual_s)
+        return tf.argmax(advs, axis=1)
 
     def learn(self, visual_s, a, r, visual_s_, done, **kwargs):
         self.episode = kwargs['episode']
@@ -160,23 +173,24 @@ class DDQN(tf.keras.Model):
         # s, visual_s, a, r, s_, visual_s_, done = self.cast(visual_s, a, r, visual_s_, done)
         # with tf.device(self.device):
         with tf.GradientTape() as tape:
-
-            q = self.q_net(visual_s)
-            q_next = self.q_net(visual_s_)
-            next_max_action = tf.argmax(q_next, axis=1)
+            v, adv = self.dueling_net(visual_s)
+            average_adv = tf.reduce_mean(adv, axis=1, keepdims=True)
+            v_next, adv_next = self.dueling_net(visual_s_)
+            next_max_action = tf.argmax(adv_next, axis=1, name='next_action_int')
             next_max_action_one_hot = tf.one_hot(tf.squeeze(next_max_action), self.a_counts, 1., 0., dtype=tf.float32)
             # next_max_action_one_hot = tf.cast(next_max_action_one_hot, tf.float32)
-            q_target_next = self.q_target_net(visual_s_)
-            q_eval = tf.reduce_sum(tf.multiply(q, tf.one_hot(a, self.a_counts, dtype=tf.float32)), axis=1, keepdims=True)
-            q_target_next_max = tf.reduce_sum(tf.multiply(q_target_next, next_max_action_one_hot), axis=1,
-                                              keepdims=True)
+            v_next_target, adv_next_target = self.dueling_target_net(visual_s_)
+            average_a_target_next = tf.reduce_mean(adv_next_target, axis=1, keepdims=True)
+            q_eval = tf.reduce_sum(tf.multiply(v + adv - average_adv, tf.one_hot(a, self.a_counts, dtype=tf.float32)), axis=1, keepdims=True)
+            q_target_next_max = tf.reduce_sum(
+                tf.multiply(v_next_target + adv_next_target - average_a_target_next, next_max_action_one_hot),
+                axis=1, keepdims=True)
             q_target = tf.stop_gradient(r + self.gamma * (1 - done) * q_target_next_max)
             td_error = q_eval - q_target
             q_loss = tf.reduce_mean(tf.square(td_error) * self.IS_w)
-
-        grads = tape.gradient(q_loss, self.q_net.trainable_variables)
+        grads = tape.gradient(q_loss, self.dueling_net.trainable_variables)
         self.optimizer.apply_gradients(
-            zip(grads, self.q_net.trainable_variables)
+            zip(grads, self.dueling_net.trainable_variables)
         )
         # self.global_step.assign_add(1)
         return td_error, dict([

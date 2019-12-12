@@ -112,7 +112,7 @@ model = DDQN(
         max_episode=MAX_EPISODE,
         gamma=DISCOUNT_FACTOR,
         base_dir=BASE_DIR,
-        lr=LEARNING_RATE,
+        # lr=LEARNING_RATE,
         # logger2file=None,
         # out_graph=None,
 )
