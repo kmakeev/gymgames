@@ -19,6 +19,25 @@ class mlp(tf.keras.Sequential):
             self.add(tf.keras.layers.Dense(output_shape, out_activation))
 
 
+class mlp_with_noisy(tf.keras.Sequential):
+    def __init__(self, hidden_units, act_fn=activation_fn, output_shape=1, out_activation=None, out_layer=True):
+        """
+        Add a gaussian noise to to the result of Dense layer. The added gaussian noise is not related to the origin input.
+        Args:
+            hidden_units: like [32, 32]
+            output_shape: units of last layer
+            out_activation: activation function of last layer
+            out_layer: whether need specifing last layer or not
+        """
+        super().__init__()
+        for u in hidden_units:
+            self.add(tf.keras.layers.GaussianNoise(0.4))  # Or use kwargs
+            self.add(tf.keras.layers.Dense(u, act_fn))
+        if out_layer:
+            self.add(tf.keras.layers.GaussianNoise(0.4))
+            self.add(tf.keras.layers.Dense(output_shape, out_activation))
+
+
 class ImageNet(tf.keras.Model):
     '''
     Processing image input observation information.
@@ -29,7 +48,7 @@ class ImageNet(tf.keras.Model):
     def __init__(self, name):
         super().__init__(name=name)
 
-        self.conv1 = tf.keras.layers.Conv2D(filters=32, kernel_size=[8, 8], strides=4,
+        self.conv1 = tf.keras.layers.Conv2D(filters=32, kernel_size=[8, 8], strides=4, data_format='channels_last',
                                             kernel_initializer=tf.keras.initializers.VarianceScaling(scale=2),
                                             padding="valid", activation='relu', use_bias=False, name='conv1')
 
@@ -69,7 +88,7 @@ class critic_q_all(ImageNet):
 
     def __init__(self, visual_dim, output_shape, name, hidden_units):
         super().__init__(name=name)
-        self.net = mlp(hidden_units, output_shape=output_shape, out_activation=None)
+        self.net = mlp_with_noisy(hidden_units, output_shape=output_shape, out_activation=None)
         self(tf.keras.Input(shape=visual_dim))
 
     @tf.function
@@ -98,14 +117,16 @@ class DQN(tf.keras.Model):
         self.assign_interval = assign_interval
         self.q_net = critic_q_all(self.visual_dim, self.a_counts, 'q_net', hidden_units)
         self.q_target_net = critic_q_all(self.visual_dim, self.a_counts, 'q_target_net', hidden_units)
-        self.update_target_net_weights(self.q_target_net.weights, self.q_net.weights)
+        self.update_target_net_weights()
         self.lr = tf.keras.optimizers.schedules.PolynomialDecay(lr, self.max_episode, 1e-10, power=1.0)
         self.optimizer = tf.keras.optimizers.Adam(learning_rate=self.lr(self.episode))
 
-    def update_target_net_weights(self, tge, src, ployak=None):
+    def update_target_net_weights(self, ployak=None):
         '''
         update weights of target neural network.
         '''
+        tge = self.q_target_net.weights
+        src = self.q_net.weights
         if ployak is None:
             tf.group([t.assign(s) for t, s in zip(tge, src)])
         else:

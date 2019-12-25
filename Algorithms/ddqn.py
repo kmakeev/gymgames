@@ -119,14 +119,16 @@ class DDQN(tf.keras.Model):
 
         self.q_net = critic_q_all(self.visual_dim, self.a_counts, 'q_net', hidden_units)
         self.q_target_net = critic_q_all(self.visual_dim, self.a_counts, 'q_target_net', hidden_units)
-        self.update_target_net_weights(self.q_target_net.weights, self.q_net.weights)
+        self.update_target_net_weights()
         self.lr = tf.keras.optimizers.schedules.PolynomialDecay(lr, self.max_episode, 1e-10, power=1.0)
         self.optimizer = tf.keras.optimizers.Adam(learning_rate=self.lr(self.episode))
 
-    def update_target_net_weights(self, tge, src, ployak=None):
+    def update_target_net_weights(self, ployak=None):
         '''
         update weights of target neural network.
         '''
+        tge = self.q_target_net.weights
+        src = self.q_net.weights
         if ployak is None:
             tf.group([t.assign(s) for t, s in zip(tge, src)])
         else:

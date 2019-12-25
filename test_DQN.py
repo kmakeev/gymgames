@@ -1,4 +1,4 @@
-from Algorithms.ddqn import DDQN
+from Algorithms.A2C import A2C
 from atari import Atari
 from gym.spaces import Box, Discrete, Tuple
 import os
@@ -9,6 +9,7 @@ import tensorflow as tf
 
 
 from ReplayMemory import ReplayMemory
+# from datastoragelib import DataStorage as ReplayMemory
 from NewExplorationExploitationScheduler import ExplorationExploitationScheduler
 
 # tf.compat.v1.enable_eager_execution()
@@ -106,13 +107,13 @@ else:
     action_type = 'discrete'
 
 
-model = DDQN(
+model = A2C(
         visual_resolution=visual_resolution,
         a_counts=atari.env.action_space.n,
         max_episode=MAX_EPISODE,
         gamma=DISCOUNT_FACTOR,
         base_dir=BASE_DIR,
-        # lr=LEARNING_RATE,
+        lr=LEARNING_RATE,
         # logger2file=None,
         # out_graph=None,
 )
@@ -153,6 +154,14 @@ def learn(replay_memory, episode):
     summaries = model.learn(visual_s, a, r.reshape(-1, 1), visual_s_, done.reshape(-1, 1).astype(np.float32), episode=episode)
     return summaries['LOSS/loss']
 
+
+def learn_new(replay_memory, episode):
+
+    visual_s, a, r, visual_s_, done = replay_memory.get_minibatch()
+    summaries = model.learn(visual_s, np.array(a),
+                            np.array(r).reshape(-1, 1).astype(np.float32),
+                            visual_s_, np.array(done).reshape(-1, 1).astype(np.float32), episode=episode)
+    return summaries['LOSS/loss']
 
 def train():
     my_replay_memory = ReplayMemory(size=MEMORY_SIZE, batch_size=BS)  # (★)
@@ -196,8 +205,9 @@ def train():
                     loss_list.append(loss)
 
                 if frame_number % NETW_UPDATE_FREQ == 0 and frame_number > REPLAY_MEMORY_START_SIZE:  # Количество выбранных действий между обновлениями целевой сети.
-                    model.update_target_net_weights(model.q_target_net.weights, model.q_net.weights)
-                    #update_networks(MAIN_DQN, TARGET_DQN)  # (9★)
+                    pass
+                    # model.update_target_net_weights()
+                    # update_networks(MAIN_DQN, TARGET_DQN)  # (9★)
 
 
                 if terminal:  # при окончании игры

@@ -103,6 +103,7 @@ class critic_dueling(ImageNet):
         adv = self.adv(features)
         return v, adv
 
+
 class actor_discrete(ImageNet):
     '''
     use for discrete action space.
@@ -145,6 +146,7 @@ class DDPG(tf.keras.Model):
                  base_dir,
                  gamma,
                  assign_interval=1000,
+                 lr=5.0e-4,
                  ployak=0.995,
                  discrete_tau=1.0,
                  actor_lr=5.0e-4,
@@ -170,20 +172,19 @@ class DDPG(tf.keras.Model):
         self.gumbel_dist = tfp.distributions.Gumbel(0, 1)
         self.q_net = critic_q_one(self.visual_dim, self.a_counts, 'q_net', hidden_units['q'])
         self.q_target_net = critic_q_one(self.visual_dim, self.a_counts, 'q_target_net', hidden_units['q'])
-        self.update_target_net_weights(
-            self.actor_target_net.weights + self.q_target_net.weights,
-            self.actor_net.weights + self.q_net.weights
-        )
-        self.actor_lr = tf.keras.optimizers.schedules.PolynomialDecay(actor_lr, self.max_episode, 1e-10, power=1.0)
-        self.critic_lr = tf.keras.optimizers.schedules.PolynomialDecay(critic_lr, self.max_episode, 1e-10, power=1.0)
+        self.update_target_net_weights()
+        self.actor_lr = tf.keras.optimizers.schedules.PolynomialDecay(lr, self.max_episode, 1e-10, power=1.0)
+        self.critic_lr = tf.keras.optimizers.schedules.PolynomialDecay(lr*5, self.max_episode, 1e-10, power=1.0)
         self.optimizer_actor = tf.keras.optimizers.Adam(learning_rate=self.actor_lr(self.episode))
         self.optimizer_critic = tf.keras.optimizers.Adam(learning_rate=self.critic_lr(self.episode))
 
 
-    def update_target_net_weights(self, tge, src, ployak=None):
+    def update_target_net_weights(self, ployak=None):
         '''
         update weights of target neural network.
         '''
+        tge = self.actor_target_net.weights + self.q_target_net.weights
+        src = self.actor_target_net.weights + self.q_target_net.weights
         if ployak is None:
             tf.group([t.assign(s) for t, s in zip(tge, src)])
         else:

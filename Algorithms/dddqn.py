@@ -132,14 +132,16 @@ class DDDQN(tf.keras.Model):
         self.dueling_net = critic_dueling(self.visual_dim, self.a_counts, 'dueling_net', hidden_units)
         self.dueling_target_net = critic_dueling(self.visual_dim, self.a_counts, 'dueling_target_net',
                                                     hidden_units)
-        self.update_target_net_weights(self.dueling_target_net.weights, self.dueling_net.weights)
+        self.update_target_net_weights()
         self.lr = tf.keras.optimizers.schedules.PolynomialDecay(lr, self.max_episode, 1e-10, power=1.0)
         self.optimizer = tf.keras.optimizers.Adam(learning_rate=self.lr(self.episode))
 
-    def update_target_net_weights(self, tge, src, ployak=None):
+    def update_target_net_weights(self, ployak=None):
         '''
         update weights of target neural network.
         '''
+        tge = self.dueling_target_net.weights
+        src = self.dueling_net.weights
         if ployak is None:
             tf.group([t.assign(s) for t, s in zip(tge, src)])
         else:

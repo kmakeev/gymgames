@@ -22,7 +22,7 @@ class FrameProcessor(object):
     @tf.function
     def __call__(self, frame):
         frame = tf.reshape(frame, [210, 160, 3])
-        frame = tf.cast(frame, tf.uint8)
+        # frame = tf.cast(frame, tf.uint8)
         processed = tf.image.rgb_to_grayscale(frame)
         processed = tf.image.crop_to_bounding_box(processed, 34, 0, 160, 160)
         # processed = tf.image.crop_to_bounding_box(processed, 0, 0, 172, 160)            # For pacman game
